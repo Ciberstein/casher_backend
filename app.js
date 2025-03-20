@@ -9,6 +9,8 @@ const hpp = require("hpp");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const xss = require("xss-clean");
+const cookieParser = require("cookie-parser");
+const { corsConfig } = require("./utils/corsConfig");
 
 const app = express();
 
@@ -22,11 +24,11 @@ app.use(helmet());
 app.use(express.json());
 app.use(xss());
 app.use(hpp());
-app.use(cors());
+app.use(cookieParser());
+app.use(cors(corsConfig));
 if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 
-app.use("api/v1", limiter);
-
+//app.use("/api/v1", limiter);
 app.use("/api/v1/auth", accountsRouter);
 
 app.all("*", (req, res, next) =>

@@ -1,117 +1,105 @@
 const hashPassword = require("../utils/hashPassword");
 const { transporter } = require("../mail/transporter");
 const { generateJWT, recoveryJWT } = require("../utils/jwt");
+const catchAsync = require("../utils/catchAsync");
 const Account = require("../models/accounts.model");
 
-exports.createAccount = async (req, res) => {
-  const { email, password } = req.body;
+exports.validateAuth = catchAsync(async (req, res) => {
+  const { cookies } = req;
 
-  await Account.create({
-    password: hashPassword(password),
-    email: email.toLowerCase(),
-  });
+  const auth = cookies.token ? true : false;
 
-  return res.json({
+  return res.status(200).send(auth);
+});
+
+exports.loginAccount = catchAsync(async (req, res) => {
+  const { account } = req;
+
+  return res.status(202).json({
     status: "success",
-    message: "Account has been created",
+    message: "The account must be validated",
+    account
   });
-};
+});
 
-exports.sendLoginAuthCode = async (req, res) => {
-  const { account, code } = req;
-
-  const mailOptions = {
-    from: process.env.SENDMAIL_USER,
-    to: account.email,
-    subject: "Login verification code",
-    text: code,
-  };
-
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error("Error al enviar el correo:", error);
-      res.status(500).json({
-        status: "success",
-        message: "Error interno por favor contacte a soporte",
-      });
-    } else {
-      console.log("Correo electrónico enviado:", info.response);
-      res.status(201).json({
-        status: "success",
-        message:
-          "Se ha enviado un código de verificacion a su correo electrónico",
-      });
-    }
-  });
-};
-
-exports.loginAccount = async (req, res) => {
-  const { code } = req;
-
-  const token = await generateJWT(code.accountId);
-
-  await code.destroy();
-
-  res.status(201).json({
-    status: "success",
-    message: "Account has been logged",
-    token,
-  });
-};
-
-exports.recoverySession = async (req, res) => {
-  const { code } = req;
-
-  const recoveryToken = await recoveryJWT(code.accountId);
-
-  await code.destroy();
-
-  res.status(201).json({
-    status: "success",
-    message: "Recovery session generated",
-    recoveryToken,
-    code,
-  });
-};
-
-exports.sendRecoveryAuthCode = async (req, res) => {
-  const { account, code } = req;
-
-  const mailOptions = {
-    from: process.env.SENDMAIL_USER,
-    to: account.email,
-    subject: "Recovery password verification code",
-    text: code,
-  };
-
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error("Error al enviar el correo:", error);
-      res.status(500).json({
-        status: "success",
-        message: "Error interno por favor contacte a soporte",
-      });
-    } else {
-      console.log("Correo electrónico enviado:", info.response);
-      res.status(201).json({
-        status: "success",
-        message:
-          "Se ha enviado un código de verificacion a su correo electrónico",
-      });
-    }
-  });
-};
-
-exports.recoveryPassword = async (req, res) => {
+exports.accountRecoveryPassword = catchAsync(async (req, res) => {
   const { password } = req.body;
-  const { recoveryAccount } = req;
+  const { code } = req;
 
-  await recoveryAccount.update({
+  await code.account.update({
     password: hashPassword(password),
   });
 
   return res.status(200).json({
     status: "success",
-    message: "Password updated",
+    message: "Password reset",
   });
-};
+});
+
+exports.createAccount = catchAsync(async (req, res) => {
+  const { account, mail } = req;
+
+  if (!mail)
+    return res.status(500).json({
+      status: "error",
+      message: "Error on sending security code",
+    });
+
+  return res.status(200).json({
+    status: "success",
+    message: "Account has been created",
+    account
+  });
+});
+
+exports.sendMailCode = catchAsync(async (req, res) => {
+  const { mail } = req;
+
+  if (mail)
+    return res.status(200).json({
+      status: "success",
+      message: "Auth code sent",
+    });
+
+  return res.status(500).json({
+    status: "error",
+    message: "Error on sending code",
+  });
+});
+
+exports.validateAccount = catchAsync(async (req, res) => {
+  const { code } = req;
+
+  await code.account.update({
+    status: "active",
+  });
+
+  res.status(200).json({
+    status: "success",
+    message: "Validation completed",
+  });
+});
+
+exports.logout = catchAsync(async (req, res) => {
+  res.clearCookie('token');
+  res.send('Logged out');
+});
+
+exports.getAccountData = catchAsync(async (req, res) => {
+  const { sessionAccount } = req;
+
+  const account = await Account.findOne({
+    where: { id: sessionAccount.id },
+  });
+
+  return res.status(200).send(account);
+});
+
+exports.accountRecovery = catchAsync(async (req, res) => {
+  const { account } = req;
+
+  return res.status(202).json({
+    message: "The recovery code was sent",
+    account,
+  });
+});

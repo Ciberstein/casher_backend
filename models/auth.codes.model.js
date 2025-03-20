@@ -1,7 +1,7 @@
 const { DataTypes } = require("sequelize");
 const { db } = require("../database/config");
 
-const Account = db.define(
+const Codes = db.define(
   "auth_codes",
   {
     id: {
@@ -23,4 +23,4 @@ const Account = db.define(
   }
 );
 
-module.exports = Account;
+module.exports = Codes;

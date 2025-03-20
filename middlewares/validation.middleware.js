@@ -14,6 +14,12 @@ const validFields = (req, res, next) => {
 };
 
 exports.register = [
+  body("first_name")
+    .notEmpty()
+    .withMessage("First name cannot be empty"),
+  body("last_name")
+    .notEmpty()
+    .withMessage("Last name cannot be empty"),
   body("email")
     .notEmpty()
     .withMessage("Email cannot be empty")
@@ -22,6 +28,11 @@ exports.register = [
   body("password")
     .notEmpty()
     .withMessage("Password cannot be empty")
+    .isLength({ min: 8 })
+    .withMessage("The password must have at least 8 characters"),
+  body("password_repeat")
+    .notEmpty()
+    .withMessage("Password repeat cannot be empty")
     .isLength({ min: 8 })
     .withMessage("The password must have at least 8 characters"),
 
@@ -35,7 +46,9 @@ exports.login = [
     .isEmail()
     .withMessage("Must be a valid email")
     .trim(),
-  body("password").notEmpty().withMessage("Password cannot be empty"),
+  body("password")
+    .notEmpty()
+    .withMessage("Password cannot be empty"),
 
   validFields,
 ];
@@ -62,14 +75,61 @@ exports.recovery = [
   validFields,
 ];
 
-exports.recoveryPassword = [
+exports.recoveryValidation = [
+  body("accountId")
+    .notEmpty()
+    .withMessage("Account ID is required")
+    .isInt()
+    .withMessage("Account ID must be a valid integer"),
+  body("code")
+    .notEmpty()
+    .withMessage("Auth code is required")
+    .isInt()
+    .withMessage("Account ID must be a valid integer"),
   body("password")
     .notEmpty()
     .withMessage("Password cannot be empty")
     .isLength({ min: 8 })
     .withMessage("The password must have at least 8 characters"),
+  body("password_repeat")
+    .notEmpty()
+    .withMessage("Password repeat cannot be empty")
+    .isLength({ min: 8 })
+    .withMessage("The password repeat must have at least 8 characters"),
 
-  body("password_repeat").notEmpty().withMessage("Password cannot be empty"),
+  validFields,
+];
+
+exports.sendAuthCode = [
+  body("email")
+    .notEmpty()
+    .withMessage("Email is required")
+    .isEmail()
+    .withMessage("Valid email is required"),
+
+  validFields,
+];
+
+exports.registerValidation = [
+  body("accountId")
+    .notEmpty()
+    .withMessage("Account ID is required")
+    .isInt()
+    .withMessage("Account ID must be a valid integer"),
+  body("code")
+    .notEmpty()
+    .withMessage("Auth code is required")
+    .isInt()
+    .withMessage("Auth code must be a valid integer"),
+
+  validFields,
+];
+
+exports.loginFirebase = [
+  body("token")
+    .notEmpty()
+    .withMessage("Token cannot be empty")
+    .trim(),
 
   validFields,
 ];

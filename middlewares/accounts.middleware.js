@@ -1,9 +1,39 @@
 const AppError = require("../utils/appError");
 const Account = require("../models/accounts.model");
 const hashPassword = require("../utils/hashPassword");
+const serviceAccount = require("../firebase/firebase");
+const catchAsync = require("../utils/catchAsync");
+const { generateJWT } = require("../utils/jwt");
+const admin = require("firebase-admin");
 
-exports.validRegisterAccount = async (req, res, next) => {
-  const { email, password, password_repeat } = req.body;
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+exports.firebase = catchAsync(async (req, res, next) => {
+  const { token } = req.body;
+
+  const data = await admin.auth().verifyIdToken(token);
+
+  if (!data) {
+    return next(new AppError(`Error on decoding data`, 401));
+  }
+
+  const account = await Account.findOne({
+    where: { email: data.email.toLowerCase() },
+  });
+
+  if (!account) {
+    return res.status(201).send(data);
+  }
+
+  req.account = account;
+
+  next();
+});
+
+exports.validRegisterAccount = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
 
   const account = await Account.findOne({
     where: {
@@ -15,20 +45,15 @@ exports.validRegisterAccount = async (req, res, next) => {
     next(new AppError("This email already registered", 401));
   }
 
-  if (password !== password_repeat) {
-    next(new AppError("Passwords do not match", 401));
-  }
-
   next();
-};
+});
 
-exports.validExistAccount = async (req, res, next) => {
+exports.validExistAccount = catchAsync(async (req, res, next) => {
   const { email } = req.body;
 
   const account = await Account.findOne({
-    where: {
-      email: email.toLowerCase(),
-    },
+    where: { email: email.toLowerCase() },
+    attributes: ["id", "email", "status"],
   });
 
   if (!account) {
@@ -37,9 +62,38 @@ exports.validExistAccount = async (req, res, next) => {
 
   req.account = account;
   next();
-};
+});
 
-exports.validLoginAccount = async (req, res, next) => {
+exports.createAccount = catchAsync(async (req, res, next) => {
+  const { email, password, first_name, last_name, email_verified = false } = req.body;
+
+  const account = await Account.create({
+    status: email_verified ? "active" : "pending", 
+    first_name, 
+    last_name,
+    password: hashPassword(password),
+    email: email.toLowerCase(),
+    attributes: ["id", "email", "status"],
+  });
+
+  if (!account) {
+    next(new AppError("Error on register", 500));
+  }
+
+  if (email_verified) {
+    return res.status(201).json({
+      status: "success",
+      message: "Account has been created",
+      account,
+    });
+  }
+
+  req.account = account;
+
+  next();
+});
+
+exports.validLoginAccount = catchAsync(async (req, res, next) => {
   const { password } = req.body;
   const { account } = req;
 
@@ -55,9 +109,51 @@ exports.validLoginAccount = async (req, res, next) => {
   }
 
   next();
-};
+});
 
-exports.validRecoveryPassword = async (req, res, next) => {
+exports.accountVerify = catchAsync(async (req, res, next) => {
+  const { account } = req;
+
+  if (account.status === "active") {
+    const token = await generateJWT(account.id);
+
+    return res.cookie('token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict', 
+    }).status(200).json({
+      status: "success",
+      message: "Account has been logged",
+      account
+    });
+  }
+
+  else if(account.status === "disabled") {
+    return next(new AppError("Account disabled", 401));
+  }
+
+  next();
+});
+
+exports.validAuthCodeReceipt = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+
+  const account = await Account.findOne({
+    where: { email },
+    attributes: ["id", "email", "status"],
+  });
+
+  if (!account) {
+    next(new AppError(`Account with email: ${email} not found`, 404));
+  }
+
+  req.email = account.email;
+  req.account = account;
+
+  next();
+});
+
+exports.passwordsMatch = catchAsync(async (req, res, next) => {
   const { password, password_repeat } = req.body;
 
   if (password !== password_repeat) {
@@ -65,4 +161,4 @@ exports.validRecoveryPassword = async (req, res, next) => {
   }
 
   next();
-};
+});

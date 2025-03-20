@@ -17,7 +17,7 @@ const Account = db.define(
       field: "email",
     },
     password: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
       allowNull: false,
       field: "password",
     },

@@ -1,14 +1,17 @@
 const AppError = require("../utils/appError");
 const Codes = require("../models/auth.codes.model");
 const generateCode = require("../utils/generateCode");
+const Account = require("../models/accounts.model");
 
-exports.validExistCode = async (req, res, next) => {
+exports.authCodeExist = async (req, res, next) => {
   const { code } = req.body;
 
   const code_exist = await Codes.findOne({
-    where: {
-      code,
-    },
+    where: { code },
+    include: [{ 
+      model: Account,
+      attributes: ["id", "email", "status"],
+    }],
   });
 
   if (!code_exist) next(new AppError("Invalid code", 401));
@@ -18,7 +21,7 @@ exports.validExistCode = async (req, res, next) => {
   next();
 };
 
-exports.validNotExistCode = async (req, res, next) => {
+exports.authCodeGenerate = async (req, res, next) => {
   let code;
   let code_exist;
 
@@ -26,9 +29,7 @@ exports.validNotExistCode = async (req, res, next) => {
     code = generateCode().toString();
 
     code_exist = await Codes.findOne({
-      where: {
-        code,
-      },
+      where: { code },
     });
   } while (code_exist);
 
@@ -37,13 +38,11 @@ exports.validNotExistCode = async (req, res, next) => {
   next();
 };
 
-exports.validUserHasCode = async (req, res, next) => {
+exports.userHasCode = async (req, res, next) => {
   const { account, code } = req;
 
   const query = await Codes.findOne({
-    where: {
-      accountId: account.id,
-    },
+    where: { accountId: account.id, },
   });
 
   if (query) {
@@ -73,7 +72,7 @@ exports.validUserHasCode = async (req, res, next) => {
   next();
 };
 
-exports.validExpiredCode = async (req, res, next) => {
+exports.authCodeExpired = async (req, res, next) => {
   const { code } = req;
 
   const limit = process.env.CODE_EXPIRE_IN * 1000;

@@ -8,54 +8,83 @@ const authMiddleware = require("../middlewares/auth.middleware");
 const router = express.Router();
 
 router.post(
+  "/check",
+  accountController.validateAuth
+);
+router.post(
   "/register",
   validation.register,
   accountMiddleware.validRegisterAccount,
+  accountMiddleware.passwordsMatch,
+  accountMiddleware.createAccount,
+  authMiddleware.authCodeGenerate,
+  authMiddleware.userHasCode,
+  authMiddleware.sendMailCode,
   accountController.createAccount
+);
+router.post(
+  "/register/validation/",
+  validation.registerValidation,
+  authMiddleware.authCodeExist,
+  authMiddleware.authCodeExpired,
+  authMiddleware.authCodeDelete,
+  accountController.validateAccount
 );
 router.post(
   "/login",
   validation.login,
   accountMiddleware.validExistAccount,
   accountMiddleware.validLoginAccount,
-  authCodesMiddleware.validNotExistCode,
-  authCodesMiddleware.validUserHasCode,
-  accountController.sendLoginAuthCode
+  accountMiddleware.accountVerify,
+  authMiddleware.authCodeGenerate,
+  authMiddleware.userHasCode,
+  authMiddleware.sendMailCode,
+  accountController.loginAccount
 );
 router.post(
-  "/login/validation",
-  validation.authCode,
-  authCodesMiddleware.validExistCode,
-  authCodesMiddleware.validExpiredCode,
+  "/login/firebase",
+  validation.loginFirebase,
+  accountMiddleware.firebase,
+  accountMiddleware.accountVerify,
+  authMiddleware.authCodeGenerate,
+  authMiddleware.userHasCode,
+  authMiddleware.sendMailCode,
   accountController.loginAccount
 );
 router.post(
   "/recovery",
   validation.recovery,
-  accountMiddleware.validExistAccount,
-  authCodesMiddleware.validNotExistCode,
-  authCodesMiddleware.validUserHasCode,
-  accountController.sendRecoveryAuthCode
+  accountMiddleware.validAuthCodeReceipt,
+  authCodesMiddleware.authCodeGenerate,
+  authCodesMiddleware.userHasCode,
+  authMiddleware.sendMailCode,
+  accountController.accountRecovery
 );
 router.post(
   "/recovery/validation",
-  validation.authCode,
-  authCodesMiddleware.validExistCode,
-  authCodesMiddleware.validExpiredCode,
-  accountController.recoverySession
+  validation.recoveryValidation,
+  accountMiddleware.passwordsMatch,
+  authCodesMiddleware.authCodeExist,
+  authCodesMiddleware.authCodeExpired,
+  authMiddleware.authCodeDelete,
+  accountController.accountRecoveryPassword
+);
+router.post(
+  "/code",
+  validation.sendAuthCode,
+  accountMiddleware.validAuthCodeReceipt,
+  authMiddleware.authCodeGenerate,
+  authMiddleware.userHasCode,
+  authMiddleware.sendMailCode,
+  accountController.sendMailCode
+);
+router.post("/logout", 
+  accountController.logout
 );
 
-router.use(authMiddleware.recovery);
+router.use(authMiddleware.protect);
 
-router.patch(
-  "/recovery/password",
-  validation.recoveryPassword,
-  accountMiddleware.validRecoveryPassword,
-  accountController.recoveryPassword
-);
+router.get("/", accountController.getAccountData);
 
-//router.use(authMiddleware.protect);
-
-//router.get("/", accountControllers.getAccountDetails);
 
 module.exports = router;
