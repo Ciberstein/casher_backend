@@ -1,5 +1,6 @@
 const express = require("express");
 const accountsRouter = require("./routes/accounts.routes");
+const transactionsRouter = require("./routes/transactions.routes");
 
 const AppError = require("./utils/appError");
 const { globalErrorHandler } = require("./controllers/error.controllers");
@@ -30,6 +31,8 @@ if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 
 //app.use("/api/v1", limiter);
 app.use("/api/v1/auth", accountsRouter);
+app.use("/api/v1/transactions", transactionsRouter);
+
 
 app.all("*", (req, res, next) =>
   next(

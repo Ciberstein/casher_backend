@@ -133,3 +133,46 @@ exports.loginFirebase = [
 
   validFields,
 ];
+
+exports.validReceiver = [
+  body("receiver")
+    .notEmpty()
+    .withMessage("Receiver cannot be empty")
+    .isLength({ min: 5 })
+    .withMessage("Receiver must have at least 8 characters")
+    .trim(),
+
+  body("type")
+    .notEmpty()
+    .withMessage("Type cannot be empty")
+    .isNumeric()
+    .withMessage("Invalid type Type")
+    .custom((value) => value >= 1 && value <= 2)
+    .withMessage("Invalid Type")
+    .trim(),
+
+  validFields,
+];
+
+exports.validAmount = [
+  body("amount")
+    .notEmpty()
+    .withMessage("Amount cannot be empty")
+    .isNumeric()
+    .withMessage("Invalid amount type")
+    .custom((value) => value > 0)
+    .withMessage("Invalid amount")
+    .trim(),
+
+  validFields,
+];
+
+exports.validSend = [
+  body("confirmation")
+    .notEmpty()
+    .withMessage("Confirmation cannot be empty")
+    .isBoolean()
+    .withMessage("Invalid code type"),
+
+  validFields,
+];

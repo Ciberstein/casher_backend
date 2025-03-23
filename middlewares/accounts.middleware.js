@@ -67,8 +67,20 @@ exports.validExistAccount = catchAsync(async (req, res, next) => {
 exports.createAccount = catchAsync(async (req, res, next) => {
   const { email, password, first_name, last_name, email_verified = false } = req.body;
 
+  let webName;
+  let username;
+
+  do {
+    username = `user_${Math.floor(100000 + Math.random() * 900000)}`;
+
+    webName = await Account.findOne({
+      where: { username },
+    });
+  } while (webName);
+
   const account = await Account.create({
-    status: email_verified ? "active" : "pending", 
+    status: email_verified ? "active" : "pending",
+    username,
     first_name, 
     last_name,
     password: hashPassword(password),
