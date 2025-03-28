@@ -174,3 +174,51 @@ exports.passwordsMatch = catchAsync(async (req, res, next) => {
 
   next();
 });
+
+exports.emailsValidations = catchAsync(async (req, res, next) => {
+  const { new_email, new_email_repeat } = req.body;
+  const { sessionAccount } = req;
+
+  const account = await Account.findOne({
+    where: {
+      email: new_email.toLowerCase(),
+    },
+  });
+
+  if (account) {
+    next(new AppError("Correo electrónico en uso", 401));
+  }
+
+  if (new_email !== new_email_repeat) {
+    next(new AppError(`Los emails no coinciden`, 401));
+  }
+
+  if (new_email === sessionAccount.email) {
+    next(
+      new AppError(`La nueva direccion de correo debe ser diferente a la actual`, 401)
+    );
+  }
+
+  req.email = new_email;
+  req.account = sessionAccount;
+
+  next();
+});
+
+exports.updatePasword = catchAsync(async (req, res, next) => {
+  const { password, new_password, new_password_repeat } = req.body;
+  const { sessionAccount } = req;
+
+  if (sessionAccount.password !== hashPassword(password)) {
+    return next(new AppError("Wrong password", 401));
+  }
+
+  if (new_password !== new_password_repeat) {
+    return next(new AppError("New Passwords do not match", 401));
+  }
+
+  req.account = sessionAccount;
+
+  next();
+});
+

@@ -176,3 +176,85 @@ exports.validSend = [
 
   validFields,
 ];
+
+exports.updateEmail = [
+  body("new_email")
+    .notEmpty()
+    .withMessage("New email is required")
+    .isEmail()
+    .withMessage("Valid email is required"),
+
+  body("new_email_repeat")
+    .notEmpty()
+    .withMessage("New email repeat is required")
+    .isEmail()
+    .withMessage("Valid email repeat is required"),
+
+  validFields,
+];
+
+exports.updateEmailValidation = [
+  body("email")
+    .notEmpty()
+    .withMessage("New email is required")
+    .isEmail()
+    .withMessage("Valid email is required"),
+
+  body("code")
+    .notEmpty()
+    .withMessage("Auth code is required")
+    .isInt()
+    .withMessage("Account ID must be a valid integer"),
+
+  validFields,
+];
+
+exports.updatePersonalData = [
+  body("first_name")
+    .notEmpty()
+    .withMessage("First name password is required")
+    .trim(),
+
+  body("last_name")
+    .notEmpty()
+    .withMessage("Last name is required")
+    .trim(),
+
+  validFields,
+];
+
+exports.updatePasword = [
+  body("password")
+    .notEmpty()
+    .withMessage("Actual password is required"),
+
+  body("new_password")
+    .notEmpty()
+    .withMessage("New password is required"),
+
+  body("new_password_repeat")
+    .notEmpty()
+    .withMessage("New password repeat is required"),
+
+  validFields,
+];
+
+exports.updatePaswordValidation = [
+  body("code")
+    .notEmpty()
+    .withMessage("Auth code is required")
+    .isInt()
+    .withMessage("Code must be a valid integer"),
+
+  validFields,
+];
+
+exports.validIdParam = [
+  param("id")
+    .notEmpty()
+    .withMessage("ID is required")
+    .isInt()
+    .withMessage("ID must be a valid integer"),
+
+  validFields,
+];

@@ -1,7 +1,8 @@
-const { transporter } = require("../mail/transporter");
+const { Resend } = require('resend');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const mailSender = async (to, subject, body) => {
-  let status = true;
 
   const html = `
     <div
@@ -22,14 +23,6 @@ const mailSender = async (to, subject, body) => {
           overflow: hidden;
         "
       >
-        <header
-          style="
-            padding: 1rem;
-            background: #202020;
-          "
-        >
-
-        </header>
         <div
           style="
             padding: 1rem;
@@ -48,32 +41,16 @@ const mailSender = async (to, subject, body) => {
       </div>
     </div>`;
 
-  transporter.sendMail(
+  resend.emails.send(
     {
-      from: `"Casher" <${process.env.SENDMAIL_USER}>`,
+      from: `"Casher" <${process.env.SENDMAIL_ADDR}>`,
       to,
       subject,
       html,
     },
-    (error, info) => {
-      if (error) {
-        console.log(
-          `\x1b[34mMAIL SENT (${to}):\x1b[0m`,
-          `\x1b[31mERROR\x1b[0m`,
-          error
-        );
-        status = false;
-      } else {
-        console.log(
-          `\x1b[34mMAIL SENT (${to}):\x1b[0m`,
-          `\x1b[32mSENT\x1b[0m`,
-          info.response
-        );
-      }
-    }
   );
 
-  return status;
+  return true;
 };
 
 module.exports = mailSender;

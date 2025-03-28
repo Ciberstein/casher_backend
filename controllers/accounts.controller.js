@@ -1,6 +1,4 @@
 const hashPassword = require("../utils/hashPassword");
-const { transporter } = require("../mail/transporter");
-const { generateJWT, recoveryJWT } = require("../utils/jwt");
 const catchAsync = require("../utils/catchAsync");
 const Account = require("../models/accounts.model");
 
@@ -101,5 +99,59 @@ exports.accountRecovery = catchAsync(async (req, res) => {
   return res.status(202).json({
     message: "The recovery code was sent",
     account,
+  });
+});
+
+exports.updateEmailCode = catchAsync(async (req, res) => {
+  const { email } = req;
+
+  return res.status(200).json(email);
+});
+
+exports.updateEmail = catchAsync(async (req, res) => {
+  const { email } = req.body;
+  const { sessionAccount } = req;
+
+  await sessionAccount.update({
+    email: email.toLowerCase(),
+  });
+
+  return res.status(200).json({
+    status: "success",
+    message: "Correo electrónico actualizado con éxito",
+  });
+});
+
+exports.updatePersonalData = catchAsync(async (req, res) => {
+  const { first_name, last_name } = req.body;
+  const { sessionAccount } = req;
+
+  await sessionAccount.update({
+    first_name, last_name
+  });
+
+  return res.status(200).json({
+    status: "success",
+    message: "Datos personales actualizados con éxito"
+  });
+});
+
+exports.updatePaswordCode = catchAsync(async (req, res) => {
+  const { new_password } = req.body;
+
+  return res.status(200).send(new_password);
+});
+
+exports.updatePassword = catchAsync(async (req, res) => {
+  const { password } = req.body;
+  const { sessionAccount } = req;
+
+  await sessionAccount.update({
+    password: hashPassword(String(password)),
+  });
+
+  return res.status(200).json({
+    status: "success",
+    message: "Password updated",
   });
 });

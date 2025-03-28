@@ -5,8 +5,8 @@ const { promisify } = require("util");
 const Account = require("../models/accounts.model");
 const generateCode = require("../utils/generateCode");
 const Codes = require("../models/auth.codes.model");
-const mailSender = require("../utils/mailSender");
 const formatTime = require("../utils/formatTime");
+const mailSender = require("../mail/mailSender");
 
 exports.protect = catchAsync(async (req, res, next) => {
   let token;
@@ -117,7 +117,8 @@ exports.sendMailCode = catchAsync(async (req, res, next) => {
 });
 
 exports.authCodeExist = catchAsync(async (req, res, next) => {
-  const { code, accountId } = req.body;
+  const { sessionAccount } = req;
+  const { code, accountId = sessionAccount.id } = req.body;
 
   const code_exist = await Codes.findOne({
     where: {
@@ -137,6 +138,7 @@ exports.authCodeExist = catchAsync(async (req, res, next) => {
 
   next();
 });
+
 
 exports.authCodeExpired = catchAsync(async (req, res, next) => {
   const { code } = req;

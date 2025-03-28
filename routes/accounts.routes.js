@@ -86,5 +86,44 @@ router.use(authMiddleware.protect);
 
 router.get("/", accountController.getAccountData);
 
+router.patch(
+  "/update/email",
+  validation.updateEmail,
+  accountMiddleware.emailsValidations,
+  authMiddleware.authCodeGenerate,
+  authMiddleware.userHasCode,
+  authMiddleware.sendMailCode,
+  accountController.updateEmailCode
+);
+router.patch(
+  "/update/email/validation",
+  validation.updateEmailValidation,
+  authMiddleware.authCodeExist,
+  authMiddleware.authCodeExpired,
+  authMiddleware.authCodeDelete,
+  accountController.updateEmail
+);
+router.patch(
+  "/update/personal",
+  validation.updatePersonalData,
+  accountController.updatePersonalData
+);
+router.patch(
+  "/update/password",
+  validation.updatePasword,
+  accountMiddleware.updatePasword,
+  authMiddleware.authCodeGenerate,
+  authMiddleware.userHasCode,
+  authMiddleware.sendMailCode,
+  accountController.updatePaswordCode
+);
+router.patch(
+  "/update/password/validation",
+  validation.updatePaswordValidation,
+  authMiddleware.authCodeExist,
+  authMiddleware.authCodeExpired,
+  authMiddleware.authCodeDelete,
+  accountController.updatePassword
+);
 
 module.exports = router;
