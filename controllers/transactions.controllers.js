@@ -92,8 +92,7 @@ exports.getTransactions = catchAsync(async (req, res) => {
             accounntId: sessionAccount.id,
             receiverId: sessionAccount.id,
         }],
-        order: [['id', 'DESC']],
-        
+        order: [['id', 'DESC']],        
         include: [
             {
                 model: Account,
@@ -118,4 +117,29 @@ exports.getTransactions = catchAsync(async (req, res) => {
     const transactions = await Transaction.findAll(query);
     return res.status(200).send(transactions);
 });
-  
+
+exports.updateTx = catchAsync(async (req, res) => {
+    const { transaction } = req;
+    const { status } = req.body;
+     
+    if(status) {
+        await transaction.owner.decrement("balance_available", 
+            { by: transaction.data.amount }
+        );
+
+        await transaction.receiver.increment("balance_available",
+            { by: transaction.data.amount }
+        );
+    }
+
+    await transaction.update({
+        status: status ? 'completed' : 'cancelled'
+    });
+
+
+    return res.status(200).json({
+        status: "success",
+        message: `Transaction ${status ? 'completed' : 'cancelled'}`
+    });
+
+});

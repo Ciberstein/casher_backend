@@ -34,7 +34,12 @@ router.post(
 );
 
 router.patch(
-  "/request/:hash",
+  "/request/:id",
+  validation.validIdParam,
+  validation.validManageTx,
+  transactionsMiddlewares.txById,
+  transactionsMiddlewares.manageTx,
+  transactionsControllers.updateTx
 );
 
 module.exports = router;

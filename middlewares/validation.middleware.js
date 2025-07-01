@@ -258,3 +258,13 @@ exports.validIdParam = [
 
   validFields,
 ];
+
+exports.validManageTx = [
+  body("status")
+    .notEmpty()
+    .withMessage("status is required")
+    .isBoolean()
+    .withMessage("status must be a valid boolean"),
+
+  validFields,
+];
