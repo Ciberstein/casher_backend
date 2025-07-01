@@ -48,6 +48,40 @@ exports.sendPayment = catchAsync(async (req, res) => {
     });
 });
 
+exports.requestPayment = catchAsync(async (req, res) => {
+    const { account, sessionAccount } = req;
+    const { amount } = req.body;
+
+    let webHash;
+    let hash;
+  
+    do {
+      hash = generateHash(20);
+  
+      webHash = await Transaction.findOne({
+        where: { hash },
+      });
+    } while (webHash);
+
+    const data = {
+        type: 10,
+        amount: Number(amount)
+    };
+
+    await Transaction.create({
+        accountId: account.id,
+        receiverId: sessionAccount.id,
+        status: "pending",
+        hash,
+        data
+    });
+  
+    return res.status(202).json({
+        status: "success",
+        message: "Request send successfully"
+    });
+});
+
 
 exports.getTransactions = catchAsync(async (req, res) => {
     const { sessionAccount } = req;

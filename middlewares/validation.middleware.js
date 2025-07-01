@@ -134,12 +134,12 @@ exports.loginFirebase = [
   validFields,
 ];
 
-exports.validReceiver = [
-  body("receiver")
+exports.validUser = [
+  body("user")
     .notEmpty()
-    .withMessage("Receiver cannot be empty")
+    .withMessage("User cannot be empty")
     .isLength({ min: 5 })
-    .withMessage("Receiver must have at least 8 characters")
+    .withMessage("User must have at least 8 characters")
     .trim(),
 
   body("type")

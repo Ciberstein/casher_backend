@@ -2,16 +2,15 @@ const Account = require("../models/accounts.model");
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
 
-
-exports.validReceiver = catchAsync(async (req, res, next) => {
-    const { type, receiver, amount } = req.body;
+exports.validUser = catchAsync(async (req, res, next) => {
+    const { type, user, amount } = req.body;
     const { sessionAccount } = req;
     const query = { status: "active" };
 
     if(type == 1) 
-        query.email = receiver.toLowerCase();
+        query.email = user.toLowerCase();
     else if (type == 2)
-        query.username = receiver;
+        query.username = user;
   
     const account = await Account.findOne({
         where: query,
@@ -23,7 +22,7 @@ exports.validReceiver = catchAsync(async (req, res, next) => {
     }
 
     if (account.id === sessionAccount.id) {
-        return next(new AppError("Cannot send funds to your own account", 401));
+        return next(new AppError("The user must not be yourself.", 401));
     }
 
     if(!amount) {
@@ -36,12 +35,20 @@ exports.validReceiver = catchAsync(async (req, res, next) => {
 });
   
 exports.validBalance = catchAsync(async (req, res, next) => {
-    const { sessionAccount, account } = req;
-    const { amount, confirmation } = req.body;
+    const { sessionAccount } = req;
+    const { amount } = req.body;
   
     if (sessionAccount.balance_available < Number(amount)) {
         return next(new AppError("Insuficient balance", 401));
     }
+
+    next();
+});
+
+
+exports.validConfirmation = catchAsync(async (req, res, next) => {
+    const { account } = req;
+    const { amount, confirmation } = req.body;
 
     if(!confirmation){
         return res.status(201).json({

@@ -14,12 +14,27 @@ router.get(
 
 router.post(
   "/send",
-  validation.validReceiver,
-  transactionsMiddlewares.validReceiver,
+  validation.validUser,
+  transactionsMiddlewares.validUser,
   validation.validAmount,
   transactionsMiddlewares.validBalance,
+  transactionsMiddlewares.validConfirmation,
   validation.validSend,
   transactionsControllers.sendPayment,
+);
+
+router.post(
+  "/request",
+  validation.validUser,
+  transactionsMiddlewares.validUser,
+  validation.validAmount,
+  transactionsMiddlewares.validConfirmation,
+  validation.validSend,
+  transactionsControllers.requestPayment,
+);
+
+router.patch(
+  "/request/:hash",
 );
 
 module.exports = router;
