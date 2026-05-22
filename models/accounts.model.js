@@ -57,6 +57,18 @@ const Accounts = db.define(
       allowNull: false,
       field: "status",
     },
+    interest_rate: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+      defaultValue: 1.5,
+      field: "interest_rate",
+    },
+    currency: {
+      type: DataTypes.ENUM("COP", "USD"),
+      allowNull: false,
+      defaultValue: "COP",
+      field: "currency",
+    },
   },
   {
     tableName: "users_accounts",

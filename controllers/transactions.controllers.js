@@ -5,29 +5,27 @@ const generateHash = require("../utils/generateUUID");
 const User = require("../models/accounts.model");
 
 exports.sendPayment = catchAsync(async (req, res) => {
-    const { account, sessionAccount } = req;
-    const { amount } = req.body;
+    const { account, sessionAccount, amountCOP } = req;
+    const { amount, currency } = req.body;
 
     let webHash;
     let hash;
-  
+
     do {
       hash = generateHash(20);
-  
-      webHash = await Transaction.findOne({
-        where: { hash },
-      });
+      webHash = await Transaction.findOne({ where: { hash } });
     } while (webHash);
 
     const data = {
         type: 10,
-        amount: Number(amount)
+        amount: Number(amount),
+        currency: currency || 'COP',
     };
 
     await Promise.all([
-        sessionAccount.decrement("balance_available", { by: amount }),
-        account.increment("balance_available", { by: amount }),
-    ])
+        sessionAccount.decrement("balance_available", { by: amountCOP }),
+        account.increment("balance_available", { by: amountCOP }),
+    ]);
 
     await Transaction.create({
         accountId: sessionAccount.id,
@@ -36,7 +34,7 @@ exports.sendPayment = catchAsync(async (req, res) => {
         hash,
         data
     });
-  
+
     return res.status(202).json({
         status: "success",
         message: "Founds send successfully"
@@ -45,22 +43,20 @@ exports.sendPayment = catchAsync(async (req, res) => {
 
 exports.requestPayment = catchAsync(async (req, res) => {
     const { account, sessionAccount } = req;
-    const { amount } = req.body;
+    const { amount, currency } = req.body;
 
     let webHash;
     let hash;
-  
+
     do {
       hash = generateHash(20);
-  
-      webHash = await Transaction.findOne({
-        where: { hash },
-      });
+      webHash = await Transaction.findOne({ where: { hash } });
     } while (webHash);
 
     const data = {
         type: 10,
-        amount: Number(amount)
+        amount: Number(amount),
+        currency: currency || 'COP',
     };
 
     await Transaction.create({
@@ -125,27 +121,22 @@ exports.getTransactions = catchAsync(async (req, res) => {
 });
 
 exports.updateTx = catchAsync(async (req, res) => {
-    const { transaction } = req;
+    const { transaction, amountCOP } = req;
     const { status } = req.body;
-     
-    if(status) {
-        await transaction.owner.decrement("balance_available", 
-            { by: transaction.data.amount }
-        );
 
-        await transaction.receiver.increment("balance_available",
-            { by: transaction.data.amount }
-        );
+    if(status) {
+        await Promise.all([
+            transaction.owner.decrement("balance_available", { by: amountCOP }),
+            transaction.receiver.increment("balance_available", { by: amountCOP }),
+        ]);
     }
 
     await transaction.update({
         status: status ? 'completed' : 'cancelled'
     });
 
-
     return res.status(200).json({
         status: "success",
         message: `Transaction ${status ? 'completed' : 'cancelled'}`
     });
-
 });

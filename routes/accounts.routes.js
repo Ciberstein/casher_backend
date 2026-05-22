@@ -96,6 +96,7 @@ router.post(
 router.use(authMiddleware.protect);
 
 router.get("/", accountController.getAccountData);
+router.post("/pay", accountController.payBalance);
 
 router.patch(
   "/update/email",
@@ -113,6 +114,10 @@ router.patch(
   authMiddleware.authCodeExpired,
   authMiddleware.authCodeDelete,
   accountController.updateEmail
+);
+router.patch(
+  "/update/currency",
+  accountController.updateCurrency
 );
 router.patch(
   "/update/personal",

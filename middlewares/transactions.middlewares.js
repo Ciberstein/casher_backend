@@ -2,6 +2,7 @@ const User = require("../models/accounts.model");
 const Transaction = require("../models/transactions.model");
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
+const getExchangeRate = require("../utils/exchangeRate");
 
 exports.validUser = catchAsync(async (req, res, next) => {
     const { type, user, amount } = req.body;
@@ -42,12 +43,16 @@ exports.validUser = catchAsync(async (req, res, next) => {
   
 exports.validBalance = catchAsync(async (req, res, next) => {
     const { sessionAccount } = req;
-    const { amount } = req.body;
-  
-    if (sessionAccount.balance_available < Number(amount)) {
+    const { amount, currency } = req.body;
+
+    const rate = await getExchangeRate();
+    const amountCOP = currency === 'USD' ? Number(amount) * rate : Number(amount);
+
+    if (sessionAccount.balance_available < amountCOP) {
         return next(new AppError("Insuficient balance", 401));
     }
 
+    req.amountCOP = amountCOP;
     next();
 });
 
@@ -110,13 +115,21 @@ exports.manageTx = catchAsync(async (req, res, next) => {
     if(transaction.status !== "pending") {
         return next(new AppError("The transaction has already been resolved.", 401));
     }
-     
+
     if(status && transaction.owner.id !== sessionAccount.id) {
         return next(new AppError("Only the owner can do this.", 401));
     }
 
-    if(status && sessionAccount.balance_available < transaction.data.amount) {
-        return next(new AppError("Insuficient balance", 401));
+    if(status) {
+        const rate = await getExchangeRate();
+        const currency = transaction.data.currency || 'COP';
+        const amountCOP = currency === 'USD' ? transaction.data.amount * rate : transaction.data.amount;
+
+        if(sessionAccount.balance_available < amountCOP) {
+            return next(new AppError("Insuficient balance", 401));
+        }
+
+        req.amountCOP = amountCOP;
     }
 
     next();
