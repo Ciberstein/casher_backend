@@ -23,6 +23,7 @@ const withdrawals = require("./routes/withdrawals.routes");
 const banks = require("./routes/banks.routes");
 const activity = require("./routes/activity.routes");
 const documentTypes = require("./routes/document_types.routes");
+const upload = require("./routes/upload.routes");
 
 if (process.env.NODE_ENV === "development") 
   app.use(morgan("dev"));
@@ -41,6 +42,7 @@ router.use("/withdrawals", withdrawals);
 router.use("/banks", banks);
 router.use("/activity", activity);
 router.use("/document-types", documentTypes);
+router.use("/upload", upload);
 
 app.use("/api/v1", router);
 
