@@ -15,7 +15,7 @@ const { globalErrorHandler } = require("./controllers/error.controllers");
 
 // ROUTES //
 const accounts = require("./routes/accounts.routes");
-const transactions = require("./routes/transactions.routes");
+const transfers = require("./routes/transfers.routes");
 const exchange = require("./routes/exchange.routes");
 const loans = require("./routes/loans.routes");
 const bankAccounts = require("./routes/bank_accounts.routes");
@@ -33,7 +33,7 @@ app.use(cookieParser());
 app.use(express.json());
 
 router.use("/auth", accounts);
-router.use("/transactions", transactions);
+router.use("/transfers", transfers);
 router.use("/exchange", exchange);
 router.use("/loans", loans);
 router.use("/bank-accounts", bankAccounts);
@@ -44,8 +44,8 @@ router.use("/document-types", documentTypes);
 
 app.use("/api/v1", router);
 
-const { getPublicTransaction } = require('./controllers/transactions.controllers');
-app.get('/api/v1/public/tx/:hash', getPublicTransaction);
+const { getPublicTransfer } = require('./controllers/transfers.controllers');
+app.get('/api/v1/public/tx/:hash', getPublicTransfer);
 
 app.use(globalErrorHandler);
 

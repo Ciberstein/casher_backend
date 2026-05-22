@@ -1,6 +1,6 @@
 const { Op } = require('sequelize');
 const catchAsync = require('../utils/catchAsync');
-const Transaction = require('../models/transactions.model');
+const Transfer = require('../models/transfers.model');
 const Withdrawal = require('../models/withdrawal.model');
 const Loan = require('../models/loan.model');
 const Payment = require('../models/payment.model');
@@ -15,7 +15,7 @@ exports.getActivity = catchAsync(async (req, res) => {
   const queryLimit = all ? undefined : limit;
 
   const [transactions, withdrawals, loans, payments] = await Promise.all([
-    Transaction.findAll({
+    Transfer.findAll({
       where: { [Op.or]: [{ accountId: sessionAccount.id }, { receiverId: sessionAccount.id }] },
       include: [
         {
