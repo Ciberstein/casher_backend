@@ -1,14 +1,9 @@
 const AppError = require("../utils/appError");
-const Account = require("../models/accounts.model");
 const hashPassword = require("../utils/hashPassword");
-const serviceAccount = require("../firebase/firebase");
 const catchAsync = require("../utils/catchAsync");
 const { generateJWT } = require("../utils/jwt");
-const admin = require("firebase-admin");
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+const admin = require('../firebase/config');
+const User = require("../models/accounts.model");
 
 exports.firebase = catchAsync(async (req, res, next) => {
   const { token } = req.body;
@@ -19,7 +14,7 @@ exports.firebase = catchAsync(async (req, res, next) => {
     return next(new AppError(`Error on decoding data`, 401));
   }
 
-  const account = await Account.findOne({
+  const account = await User.Accounts.findOne({
     where: { email: data.email.toLowerCase() },
   });
 
@@ -35,10 +30,8 @@ exports.firebase = catchAsync(async (req, res, next) => {
 exports.validRegisterAccount = catchAsync(async (req, res, next) => {
   const { email } = req.body;
 
-  const account = await Account.findOne({
-    where: {
-      email: email.toLowerCase(),
-    },
+  const account = await User.Accounts.findOne({
+    where: { email: email.toLowerCase() },
   });
 
   if (account) {
@@ -51,7 +44,7 @@ exports.validRegisterAccount = catchAsync(async (req, res, next) => {
 exports.validExistAccount = catchAsync(async (req, res, next) => {
   const { email } = req.body;
 
-  const account = await Account.findOne({
+  const account = await User.Accounts.findOne({
     where: { email: email.toLowerCase() },
     attributes: ["id", "email", "status"],
   });
@@ -65,7 +58,17 @@ exports.validExistAccount = catchAsync(async (req, res, next) => {
 });
 
 exports.createAccount = catchAsync(async (req, res, next) => {
-  const { email, password, first_name, last_name, email_verified = false } = req.body;
+  const {
+    email,
+    password,
+    first_name,
+    middle_name = null,
+    surname_1,
+    surname_2 = null,
+    birthday,
+    email_verified = false,
+    picture = null
+  } = req.body;
 
   let webName;
   let username;
@@ -73,20 +76,41 @@ exports.createAccount = catchAsync(async (req, res, next) => {
   do {
     username = `user_${Math.floor(100000 + Math.random() * 900000)}`;
 
-    webName = await Account.findOne({
+    webName = await User.Accounts.findOne({
       where: { username },
     });
   } while (webName);
 
-  const account = await Account.create({
-    status: email_verified ? "active" : "pending",
-    username,
-    first_name, 
-    last_name,
-    password: hashPassword(password),
-    email: email.toLowerCase(),
-    attributes: ["id", "email", "status"],
-  });
+  const account = await User.Accounts.create(
+    {
+      status: email_verified ? "active" : "pending",
+      username,
+      picture,
+      password: hashPassword(password),
+      email: email.toLowerCase(),
+      attributes: ['id', 'email', 'status'],
+      data: {
+        first_name,
+        middle_name,
+        surname_1,
+        surname_2,
+        birthday
+      }
+    },
+    {
+    include: [{
+      attributes: [
+        'first_name',
+        'middle_name',
+        'surname_1',
+        'surname_2',
+        'birthday'
+      ],
+      model: User.Data,
+      as: 'data',
+    }],
+    }
+  );
 
   if (!account) {
     next(new AppError("Error on register", 500));
@@ -109,7 +133,7 @@ exports.validLoginAccount = catchAsync(async (req, res, next) => {
   const { password } = req.body;
   const { account } = req;
 
-  const auth = await Account.findOne({
+  const auth = await User.Accounts.findOne({
     where: {
       email: account.email,
       password: hashPassword(password),
@@ -150,7 +174,7 @@ exports.accountVerify = catchAsync(async (req, res, next) => {
 exports.validAuthCodeReceipt = catchAsync(async (req, res, next) => {
   const { email } = req.body;
 
-  const account = await Account.findOne({
+  const account = await User.Accounts.findOne({
     where: { email },
     attributes: ["id", "email", "status"],
   });
@@ -179,7 +203,7 @@ exports.emailsValidations = catchAsync(async (req, res, next) => {
   const { new_email, new_email_repeat } = req.body;
   const { sessionAccount } = req;
 
-  const account = await Account.findOne({
+  const account = await User.Accounts.findOne({
     where: {
       email: new_email.toLowerCase(),
     },

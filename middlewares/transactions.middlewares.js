@@ -1,4 +1,4 @@
-const Account = require("../models/accounts.model");
+const User = require("../models/accounts.model");
 const Transaction = require("../models/transactions.model");
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
@@ -13,9 +13,14 @@ exports.validUser = catchAsync(async (req, res, next) => {
     else if (type == 2)
         query.username = user;
   
-    const account = await Account.findOne({
+    const account = await User.Accounts.findOne({
         where: query,
-        attributes: ["id", "first_name", "last_name", "username", "email", "balance_available"]
+        attributes: ["id", "username", "email", "balance_available"],
+        include: [{
+            attributes: ["first_name", "middle_name", "surname_1", "surname_2"],
+            model: User.Data,
+            as: 'data'
+        }]
     });
   
     if (!account) {
@@ -67,14 +72,24 @@ exports.txById = catchAsync(async (req, res, next) => {
         where: { id },
         include: [
             {
-                model: Account,
-                attributes: ["id", "email", "username", "first_name", "last_name"],
-                as: "owner"
+                model: User.Accounts,
+                attributes: ["id", "email", "username"],
+                as: "owner",
+                include: [{
+                    model: User.Data,
+                    attributes: ["first_name", "middle_name", "surname_1", "surname_2"],
+                    as: "data",
+                }]
             },
             {
-                model: Account,
-                attributes: ["id", "email", "username", "first_name", "last_name"],
-                as: "receiver"
+                model: User.Accounts,
+                attributes: ["id", "email", "username"],
+                as: "receiver",
+                include: [{
+                    model: User.Data,
+                    attributes: ["first_name", "middle_name", "surname_1", "surname_2"],
+                    as: "data",
+                }]
             }
         ]
     });

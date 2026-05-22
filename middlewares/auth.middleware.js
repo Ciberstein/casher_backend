@@ -2,11 +2,11 @@ const catchAsync = require("../utils/catchAsync");
 const jwt = require("jsonwebtoken");
 const AppError = require("../utils/appError");
 const { promisify } = require("util");
-const Account = require("../models/accounts.model");
 const generateCode = require("../utils/generateCode");
 const Codes = require("../models/auth.codes.model");
 const formatTime = require("../utils/formatTime");
 const mailSender = require("../mail/mailSender");
+const User = require("../models/accounts.model");
 
 exports.protect = catchAsync(async (req, res, next) => {
   let token;
@@ -27,8 +27,9 @@ exports.protect = catchAsync(async (req, res, next) => {
     return next(new AppError('Invalid token. Please login again', 401));
   }
 
-  const account = await Account.findOne({
+  const account = await User.Accounts.findOne({
     where: { id: decoded.id, status: "active" },
+    include: [{ model: User.Data, as: "data" }],
   });
 
   if (!account) {
@@ -121,15 +122,11 @@ exports.authCodeExist = catchAsync(async (req, res, next) => {
   const { code, accountId = sessionAccount.id } = req.body;
 
   const code_exist = await Codes.findOne({
-    where: {
-      code,
-      accountId,
-    },
-    include: [
-      {
-        model: Account,
-      },
-    ],
+    where: { code, accountId, },
+    include: [{
+      model: User.Accounts,
+      as: "account"
+    }],
   });
 
   if (!code_exist) next(new AppError("Invalid code", 401));
@@ -138,7 +135,6 @@ exports.authCodeExist = catchAsync(async (req, res, next) => {
 
   next();
 });
-
 
 exports.authCodeExpired = catchAsync(async (req, res, next) => {
   const { code } = req;
@@ -158,6 +154,16 @@ exports.authCodeDelete = catchAsync(async (req, res, next) => {
   const { code } = req;
 
   await code.destroy();
+
+  next();
+});
+
+exports.authRefresh = catchAsync(async (req, _, next) => {
+  const { cookies } = req;
+
+  if (!cookies.token) {
+    next(new AppError("Missing token", 400));
+  }
 
   next();
 });

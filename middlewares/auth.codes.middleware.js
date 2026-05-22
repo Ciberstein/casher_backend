@@ -1,7 +1,8 @@
 const AppError = require("../utils/appError");
 const Codes = require("../models/auth.codes.model");
 const generateCode = require("../utils/generateCode");
-const Account = require("../models/accounts.model");
+const User = require("../models/accounts.model");
+
 
 exports.authCodeExist = async (req, res, next) => {
   const { code } = req.body;
@@ -9,8 +10,9 @@ exports.authCodeExist = async (req, res, next) => {
   const code_exist = await Codes.findOne({
     where: { code },
     include: [{ 
-      model: Account,
+      model: User.Accounts,
       attributes: ["id", "email", "status"],
+      as: "account"
     }],
   });
 

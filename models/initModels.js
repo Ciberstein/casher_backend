@@ -1,16 +1,42 @@
-const Account = require("../models/accounts.model");
+const User = require("../models/accounts.model");
+
 const Codes = require("../models/auth.codes.model");
 const Transaction = require("./transactions.model");
 
 const initModel = () => {
 
-  Account.hasMany(Codes);
-  Codes.belongsTo(Account, { foreignKey: 'accountId' });
+  User.Accounts.hasMany(Codes, {
+    onDelete: 'CASCADE',
+    foreignKey: 'accountId',
+    as: 'codes',
+  });
+  Codes.belongsTo(User.Accounts, {
+    foreignKey: 'accountId',
+    as: 'account',
+  });
 
-  Account.hasMany(Transaction);
+  User.Accounts.hasMany(Transaction);
 
-  Transaction.belongsTo(Account, { foreignKey: 'accountId', as: "owner" });
-  Transaction.belongsTo(Account, { foreignKey: 'receiverId', as: "receiver" });
+  Transaction.belongsTo(User.Accounts, {
+    foreignKey: 'accountId',
+    as: 'owner'
+  });
+  Transaction.belongsTo(User.Accounts, {
+    foreignKey: 'receiverId',
+    as: 'receiver'
+  });
+
+  User.Accounts.hasOne(User.Data, {
+    onDelete: 'CASCADE',
+    foreignKey: 'accountId',
+    as: 'data'
+  });
+  User.Data.belongsTo(User.Accounts, {
+    foreignKey: 'accountId',
+    as: 'account'
+  });
+
+
 
 };
 

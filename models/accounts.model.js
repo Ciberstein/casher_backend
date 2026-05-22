@@ -1,8 +1,8 @@
 const { DataTypes } = require("sequelize");
 const { db } = require("../database/config");
 
-const Account = db.define(
-  "accounts",
+const Accounts = db.define(
+  "users_accounts",
   {
     id: {
       primaryKey: true,
@@ -23,20 +23,15 @@ const Account = db.define(
       field: "username",
       unique: true
     },
+    picture: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: "picture",
+    },
     password: {
       type: DataTypes.TEXT,
       allowNull: false,
       field: "password",
-    },
-    first_name: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      field: "first_name",
-    },
-    last_name: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      field: "last_name",
     },
     balance_available: {
       type: DataTypes.FLOAT,
@@ -64,8 +59,56 @@ const Account = db.define(
     },
   },
   {
-    tableName: "accounts",
+    tableName: "users_accounts",
+    schema: "users"
   }
 );
 
-module.exports = Account;
+const Data = db.define(
+  "users_data",
+  {
+    id: {
+      primaryKey: true,
+      autoIncrement: true,
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      field: "id",
+    },
+    first_name: {
+      type: DataTypes.STRING(30),
+      allowNull: false,
+      field: "first_name",
+    },
+    middle_name: {
+      type: DataTypes.STRING(30),
+      allowNull: true,
+      field: "middle_name",
+    },
+    surname_1: {
+      type: DataTypes.STRING(30),
+      allowNull: false,
+      field: "surname_1",
+    },
+    surname_2: {
+      type: DataTypes.STRING(30),
+      allowNull: true,
+      field: "surname_2",
+    },
+    birthday: {
+      type: DataTypes.DATEONLY,
+      allowNull: false,
+      field: "birthday",
+    },
+  },
+  {
+    tableName: "users_data",
+    schema: "users",
+  }
+);
+
+const User = {
+  Accounts,
+  Data,
+}
+
+module.exports = User;

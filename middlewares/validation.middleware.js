@@ -17,7 +17,7 @@ exports.register = [
   body("first_name")
     .notEmpty()
     .withMessage("First name cannot be empty"),
-  body("last_name")
+  body("surname_1")
     .notEmpty()
     .withMessage("Last name cannot be empty"),
   body("email")
@@ -25,6 +25,11 @@ exports.register = [
     .withMessage("Email cannot be empty")
     .isEmail()
     .withMessage("Must be a valid email"),
+  body("birthday")
+    .notEmpty()
+    .withMessage("Birthday cannot be empty")
+    .isDate()
+    .withMessage("Must be a valid date"),
   body("password")
     .notEmpty()
     .withMessage("Password cannot be empty")
@@ -215,9 +220,9 @@ exports.updatePersonalData = [
     .withMessage("First name password is required")
     .trim(),
 
-  body("last_name")
+  body("surname_1")
     .notEmpty()
-    .withMessage("Last name is required")
+    .withMessage("Fisrt surname is required")
     .trim(),
 
   validFields,

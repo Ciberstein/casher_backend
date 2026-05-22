@@ -78,8 +78,19 @@ router.post(
   authMiddleware.sendMailCode,
   accountController.sendMailCode
 );
-router.post("/logout", 
+router.post("/disconnect", 
   accountController.logout
+);
+router.post(
+  "/refresh",
+  authMiddleware.authRefresh,
+  accountController.authRefresh,
+);
+
+router.post(
+  "/validate",
+  authMiddleware.authRefresh,
+  accountController.validateSession
 );
 
 router.use(authMiddleware.protect);

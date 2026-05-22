@@ -2,7 +2,7 @@ const { Op } = require("sequelize");
 const Transaction = require("../models/transactions.model");
 const catchAsync = require("../utils/catchAsync");
 const generateHash = require("../utils/generateUUID");
-const Account = require("../models/accounts.model");
+const User = require("../models/accounts.model");
 
 exports.sendPayment = catchAsync(async (req, res) => {
     const { account, sessionAccount } = req;
@@ -24,15 +24,10 @@ exports.sendPayment = catchAsync(async (req, res) => {
         amount: Number(amount)
     };
 
-    await sessionAccount.update({
-        balance_available: 
-            sessionAccount.balance_available - Number(amount),
-    });
-
-    await account.update({
-        balance_available: 
-            account.balance_available + Number(amount),
-    });
+    await Promise.all([
+        sessionAccount.decrement("balance_available", { by: amount }),
+        account.increment("balance_available", { by: amount }),
+    ])
 
     await Transaction.create({
         accountId: sessionAccount.id,
@@ -92,17 +87,28 @@ exports.getTransactions = catchAsync(async (req, res) => {
             accounntId: sessionAccount.id,
             receiverId: sessionAccount.id,
         }],
+        attributes: ["id", "hash", "data", "status", "createdAt"],
         order: [['id', 'DESC']],        
         include: [
             {
-                model: Account,
-                attributes: ["id", "email", "username", "first_name", "last_name"],
-                as: "owner"
+                model: User.Accounts,
+                attributes: ["id", "email", "username"],
+                as: "owner",
+                include: [{
+                    model: User.Data,
+                    attributes: ["first_name", "middle_name", "surname_1", "surname_2"],
+                    as: "data",
+                }]
             },
             {
-                model: Account,
-                attributes: ["id", "email", "username", "first_name", "last_name"],
-                as: "receiver"
+                model: User.Accounts,
+                attributes: ["id", "email", "username"],
+                as: "receiver",
+                include: [{
+                    model: User.Data,
+                    attributes: ["first_name", "middle_name", "surname_1", "surname_2"],
+                    as: "data",
+                }]
             }
         ]
     };

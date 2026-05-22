@@ -1,6 +1,8 @@
 const hashPassword = require("../utils/hashPassword");
 const catchAsync = require("../utils/catchAsync");
-const Account = require("../models/accounts.model");
+const { generateJWT } = require("../utils/jwt");
+const jwt = require("jsonwebtoken");
+const User = require("../models/accounts.model");
 
 exports.validateAuth = catchAsync(async (req, res) => {
   const { cookies } = req;
@@ -86,8 +88,14 @@ exports.logout = catchAsync(async (req, res) => {
 exports.getAccountData = catchAsync(async (req, res) => {
   const { sessionAccount } = req;
 
-  const account = await Account.findOne({
+  const account = await User.Accounts.findOne({
     where: { id: sessionAccount.id },
+    attributes: ["id", "email", "username", "picture", "balance_available", "balance_pending", "role"],
+    include: [{
+      attributes: ["first_name", "middle_name", "surname_1", "surname_2", "birthday"],
+      model: User.Data,
+      as: 'data'
+    }]
   });
 
   return res.status(200).send(account);
@@ -123,11 +131,19 @@ exports.updateEmail = catchAsync(async (req, res) => {
 });
 
 exports.updatePersonalData = catchAsync(async (req, res) => {
-  const { first_name, last_name } = req.body;
+  const {
+    first_name,
+    middle_name = null,
+    surname_1,
+    surname_2 = null
+  } = req.body;
   const { sessionAccount } = req;
 
-  await sessionAccount.update({
-    first_name, last_name
+  await sessionAccount.data.update({
+    first_name, 
+    middle_name,
+    surname_1,
+    surname_2,
   });
 
   return res.status(200).json({
@@ -154,4 +170,33 @@ exports.updatePassword = catchAsync(async (req, res) => {
     status: "success",
     message: "Password updated",
   });
+});
+
+exports.authRefresh = catchAsync(async (req, res) => {
+  const { cookies } = req;
+
+  const decoded = jwt.decode(cookies.token);
+
+  const token = await generateJWT(decoded.id);
+  
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: true, 
+    sameSite: 'strict',
+  });
+
+  return res.status(200).json({
+    status: 'success',
+    message: 'Token refreshed'
+  });
+});
+
+exports.validateSession = catchAsync(async (req, res) => {
+  const { cookies } = req;
+
+  if (cookies.token) {
+    return res.status(200).json({ auth: true });
+  }
+
+  return res.status(200).json({ auth: false });
 });

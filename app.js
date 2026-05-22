@@ -1,45 +1,35 @@
-const express = require("express");
-const accountsRouter = require("./routes/accounts.routes");
-const transactionsRouter = require("./routes/transactions.routes");
 
-const AppError = require("./utils/appError");
-const { globalErrorHandler } = require("./controllers/error.controllers");
+const { cors: cors_conf } = require('./cors/config');
+const cookieParser = require('cookie-parser');
+const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
-const hpp = require("hpp");
-const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
-const xss = require("xss-clean");
-const cookieParser = require("cookie-parser");
-const { corsConfig } = require("./utils/corsConfig");
-
+const http = require('http');
 const app = express();
 
-const limiter = rateLimit({
-  max: 100,
-  windowMs: 60 * 60 * 1000,
-  message: "Too many request from this IP, please try again in one hour",
-});
+const server = http.createServer(app);
+const router = express.Router();
 
-app.use(helmet());
+// CONTROLLERS //
+const { globalErrorHandler } = require("./controllers/error.controllers");
+
+// ROUTES //
+const accounts = require("./routes/accounts.routes");
+const transactions = require("./routes/transactions.routes");
+
+if (process.env.NODE_ENV === "development") 
+  app.use(morgan("dev"));
+
+app.use("/ping", (_, r) => r.send("pong"));
+app.use(cors(cors_conf));
+app.use(cookieParser()); 
 app.use(express.json());
-app.use(xss());
-app.use(hpp());
-app.use(cookieParser());
-app.use(cors(corsConfig));
-if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 
-//app.use("/api/v1", limiter);
-app.use("/api/v1/auth", accountsRouter);
-app.use("/api/v1/transactions", transactionsRouter);
+router.use("/auth", accounts);
+router.use("/transactions", transactions);
 
-
-app.all("*", (req, res, next) =>
-  next(
-    new AppError(`The route ${req.originalUrl} was not found in this site`, 404)
-  )
-);
+app.use("/api/v1", router);
 
 app.use(globalErrorHandler);
 
-module.exports = app;
+module.exports = { server };
