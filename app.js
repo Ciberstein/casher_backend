@@ -44,6 +44,9 @@ router.use("/document-types", documentTypes);
 
 app.use("/api/v1", router);
 
+const { getPublicTransaction } = require('./controllers/transactions.controllers');
+app.get('/api/v1/public/tx/:hash', getPublicTransaction);
+
 app.use(globalErrorHandler);
 
 module.exports = { server };

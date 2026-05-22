@@ -120,6 +120,38 @@ exports.getTransactions = catchAsync(async (req, res) => {
     return res.status(200).send(transactions);
 });
 
+exports.getPublicTransaction = catchAsync(async (req, res, next) => {
+  const { hash } = req.params;
+  const AppError = require('../utils/appError');
+
+  const transaction = await Transaction.findOne({
+    where: { hash },
+    attributes: ['hash', 'status', 'data', 'createdAt'],
+    include: [
+      {
+        model: User.Accounts, as: 'owner', attributes: [],
+        include: [{ model: User.Data, as: 'data', attributes: ['first_name', 'surname_1'] }],
+      },
+      {
+        model: User.Accounts, as: 'receiver', attributes: [],
+        include: [{ model: User.Data, as: 'data', attributes: ['first_name', 'surname_1'] }],
+      },
+    ],
+  });
+
+  if (!transaction) return next(new AppError('Transacción no encontrada', 404));
+
+  return res.status(200).json({
+    hash: transaction.hash,
+    status: transaction.status,
+    amount: transaction.data.amount,
+    currency: transaction.data.currency || 'COP',
+    createdAt: transaction.createdAt,
+    sender: `${transaction.owner.data.first_name} ${transaction.owner.data.surname_1}`,
+    receiver: `${transaction.receiver.data.first_name} ${transaction.receiver.data.surname_1}`,
+  });
+});
+
 exports.updateTx = catchAsync(async (req, res) => {
     const { transaction, amountCOP } = req;
     const { status } = req.body;
