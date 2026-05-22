@@ -43,7 +43,7 @@ const mailSender = async (to, subject, body) => {
 
   resend.emails.send(
     {
-      from: `"Casher" <${process.env.SENDMAIL_ADDR}>`,
+      from: `"Casher" <${process.env.MAIL_SEND_ADDR}>`,
       to,
       subject,
       html,

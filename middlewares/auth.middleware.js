@@ -22,7 +22,7 @@ exports.protect = catchAsync(async (req, res, next) => {
   let decoded;
 
   try {
-    decoded = await promisify(jwt.verify)(token, process.env.SECRET_JWT_SEED);
+    decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET_SEED);
   } catch (error) {
     return next(new AppError('Invalid token. Please login again', 401));
   }
@@ -77,7 +77,7 @@ exports.userHasCode = catchAsync(async (req, res, next) => {
   if (query) {
     const now = new Date();
     const dif = (now - query.updatedAt) / 1000;
-    const limit = process.env.SENDMAIL_TIME_LIMIT;
+    const limit = process.env.MAIL_SEND_LIMIT;
 
     if (dif < limit) {
       return next(
@@ -106,7 +106,7 @@ exports.sendMailCode = catchAsync(async (req, res, next) => {
 
   const body = `Hello, <br />Here you have a temporary security code for your account.
     It can only be used once within the next ${formatTime(
-      process.env.CODE_EXPIRE_IN * 1000
+      process.env.MAIL_CODE_EXPIRE
     )}, after which it will expire:<br /><br />
     <b>${code}</b><br /><br />Did you receive this email without having an active request to enter a verification code?
     If so, the security of your account may be compromised. Please change your password as soon as possible.`;
@@ -140,7 +140,7 @@ exports.authCodeExist = catchAsync(async (req, res, next) => {
 exports.authCodeExpired = catchAsync(async (req, res, next) => {
   const { code } = req;
 
-  const limit = process.env.CODE_EXPIRE_IN * 1000;
+  const limit = process.env.MAIL_CODE_EXPIRE;
   const now = new Date();
   const dif = now - code.updatedAt;
 

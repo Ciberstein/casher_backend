@@ -6,7 +6,7 @@ const generateJWT = (id) => {
 
     jwt.sign(
       payload,
-      process.env.SECRET_JWT_SEED,
+      process.env.JWT_SECRET_SEED,
       {
         expiresIn: process.env.JWT_EXPIRE_IN,
       },
