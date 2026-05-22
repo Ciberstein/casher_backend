@@ -37,7 +37,8 @@ exports.sendPayment = catchAsync(async (req, res) => {
 
     return res.status(202).json({
         status: "success",
-        message: "Founds send successfully"
+        message: "Founds send successfully",
+        hash,
     });
 });
 
@@ -69,7 +70,8 @@ exports.requestPayment = catchAsync(async (req, res) => {
 
     return res.status(202).json({
         status: "success",
-        message: "Request send successfully"
+        message: "Request send successfully",
+        hash,
     });
 });
 
