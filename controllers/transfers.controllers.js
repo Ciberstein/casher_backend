@@ -77,49 +77,50 @@ exports.requestPayment = catchAsync(async (req, res) => {
 
 
 exports.getTransfers = catchAsync(async (req, res) => {
-    const { sessionAccount } = req;
-    const { hash } = req.params;
+  const { sessionAccount } = req;
+  const { hash } = req.params;
 
-    const query = {
-        [Op.or]: [{
-            accounntId: sessionAccount.id,
-            receiverId: sessionAccount.id,
+  const options = {
+    where: {
+      [Op.or]: [
+        { accountId: sessionAccount.id },
+        { receiverId: sessionAccount.id },
+      ],
+    },
+    attributes: ["id", "hash", "data", "status", "createdAt"],
+    order: [['id', 'DESC']],
+    include: [
+      {
+        model: User.Accounts,
+        attributes: ["id", "email", "username"],
+        as: "owner",
+        include: [{
+          model: User.Data,
+          attributes: ["first_name", "middle_name", "surname_1", "surname_2"],
+          as: "data",
         }],
-        attributes: ["id", "hash", "data", "status", "createdAt"],
-        order: [['id', 'DESC']],
-        include: [
-            {
-                model: User.Accounts,
-                attributes: ["id", "email", "username"],
-                as: "owner",
-                include: [{
-                    model: User.Data,
-                    attributes: ["first_name", "middle_name", "surname_1", "surname_2"],
-                    as: "data",
-                }]
-            },
-            {
-                model: User.Accounts,
-                attributes: ["id", "email", "username"],
-                as: "receiver",
-                include: [{
-                    model: User.Data,
-                    attributes: ["first_name", "middle_name", "surname_1", "surname_2"],
-                    as: "data",
-                }]
-            }
-        ]
-    };
+      },
+      {
+        model: User.Accounts,
+        attributes: ["id", "email", "username"],
+        as: "receiver",
+        include: [{
+          model: User.Data,
+          attributes: ["first_name", "middle_name", "surname_1", "surname_2"],
+          as: "data",
+        }],
+      },
+    ],
+  };
 
-    if(hash) {
-        query.hash = hash;
-        const transfer = await Transfer.findOne(query);
+  if (hash) {
+    options.where.hash = hash;
+    const transfer = await Transfer.findOne(options);
+    return res.status(200).send(transfer);
+  }
 
-        return res.status(200).send(transfer);
-    };
-
-    const transfers = await Transfer.findAll(query);
-    return res.status(200).send(transfers);
+  const transfers = await Transfer.findAll(options);
+  return res.status(200).send(transfers);
 });
 
 exports.getPublicTransfer = catchAsync(async (req, res, next) => {
@@ -131,11 +132,11 @@ exports.getPublicTransfer = catchAsync(async (req, res, next) => {
     attributes: ['hash', 'status', 'data', 'createdAt'],
     include: [
       {
-        model: User.Accounts, as: 'owner', attributes: [],
+        model: User.Accounts, as: 'owner', attributes: ['id'],
         include: [{ model: User.Data, as: 'data', attributes: ['first_name', 'surname_1'] }],
       },
       {
-        model: User.Accounts, as: 'receiver', attributes: [],
+        model: User.Accounts, as: 'receiver', attributes: ['id'],
         include: [{ model: User.Data, as: 'data', attributes: ['first_name', 'surname_1'] }],
       },
     ],
