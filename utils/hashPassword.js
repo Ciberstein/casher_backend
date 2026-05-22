@@ -1,11 +1,6 @@
-const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 
-const hashPassword = (password) => {
-  const hash = crypto.createHash("sha512");
-  hash.update(password);
-  const hashedPass = hash.digest("hex");
+const hashPassword = (password) => bcrypt.hash(password, 10);
+const comparePassword = (password, hash) => bcrypt.compare(password, hash);
 
-  return hashedPass;
-};
-
-module.exports = hashPassword;
+module.exports = { hashPassword, comparePassword };

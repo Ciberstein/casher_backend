@@ -1,5 +1,5 @@
 const AppError = require("../utils/appError");
-const hashPassword = require("../utils/hashPassword");
+const { hashPassword, comparePassword } = require("../utils/hashPassword");
 const catchAsync = require("../utils/catchAsync");
 const { generateJWT } = require("../utils/jwt");
 const admin = require('../firebase/config');
@@ -35,7 +35,7 @@ exports.validRegisterAccount = catchAsync(async (req, res, next) => {
   });
 
   if (account) {
-    next(new AppError("This email already registered", 401));
+    return next(new AppError("This email already registered", 401));
   }
 
   next();
@@ -50,7 +50,7 @@ exports.validExistAccount = catchAsync(async (req, res, next) => {
   });
 
   if (!account) {
-    next(new AppError(`Account not found`, 401));
+    return next(new AppError(`Account not found`, 401));
   }
 
   req.account = account;
@@ -86,7 +86,7 @@ exports.createAccount = catchAsync(async (req, res, next) => {
       status: email_verified ? "active" : "pending",
       username,
       picture,
-      password: hashPassword(password),
+      password: await hashPassword(password),
       email: email.toLowerCase(),
       attributes: ['id', 'email', 'status'],
       data: {
@@ -98,22 +98,22 @@ exports.createAccount = catchAsync(async (req, res, next) => {
       }
     },
     {
-    include: [{
-      attributes: [
-        'first_name',
-        'middle_name',
-        'surname_1',
-        'surname_2',
-        'birthday'
-      ],
-      model: User.Data,
-      as: 'data',
-    }],
+      include: [{
+        attributes: [
+          'first_name',
+          'middle_name',
+          'surname_1',
+          'surname_2',
+          'birthday'
+        ],
+        model: User.Data,
+        as: 'data',
+      }],
     }
   );
 
   if (!account) {
-    next(new AppError("Error on register", 500));
+    return next(new AppError("Error on register", 500));
   }
 
   if (email_verified) {
@@ -133,15 +133,15 @@ exports.validLoginAccount = catchAsync(async (req, res, next) => {
   const { password } = req.body;
   const { account } = req;
 
-  const auth = await User.Accounts.findOne({
-    where: {
-      email: account.email,
-      password: hashPassword(password),
-    },
+  const accountWithPassword = await User.Accounts.findOne({
+    where: { email: account.email },
+    attributes: ['password'],
   });
 
-  if (!auth) {
-    next(new AppError("Authentication error", 401));
+  const isValid = await comparePassword(password, accountWithPassword.password);
+
+  if (!isValid) {
+    return next(new AppError("Authentication error", 401));
   }
 
   next();
@@ -156,7 +156,7 @@ exports.accountVerify = catchAsync(async (req, res, next) => {
     return res.cookie('token', token, {
       httpOnly: true,
       secure: true,
-      sameSite: 'strict', 
+      sameSite: 'strict',
     }).status(200).json({
       status: "success",
       message: "Account has been logged",
@@ -164,7 +164,7 @@ exports.accountVerify = catchAsync(async (req, res, next) => {
     });
   }
 
-  else if(account.status === "disabled") {
+  if (account.status === "disabled") {
     return next(new AppError("Account disabled", 401));
   }
 
@@ -180,7 +180,7 @@ exports.validAuthCodeReceipt = catchAsync(async (req, res, next) => {
   });
 
   if (!account) {
-    next(new AppError(`Account with email: ${email} not found`, 404));
+    return next(new AppError(`Account with email: ${email} not found`, 404));
   }
 
   req.email = account.email;
@@ -193,7 +193,7 @@ exports.passwordsMatch = catchAsync(async (req, res, next) => {
   const { password, password_repeat } = req.body;
 
   if (password !== password_repeat) {
-    next(new AppError("Passwords do not match", 401));
+    return next(new AppError("Passwords do not match", 401));
   }
 
   next();
@@ -204,23 +204,19 @@ exports.emailsValidations = catchAsync(async (req, res, next) => {
   const { sessionAccount } = req;
 
   const account = await User.Accounts.findOne({
-    where: {
-      email: new_email.toLowerCase(),
-    },
+    where: { email: new_email.toLowerCase() },
   });
 
   if (account) {
-    next(new AppError("Correo electrónico en uso", 401));
+    return next(new AppError("Correo electrónico en uso", 401));
   }
 
   if (new_email !== new_email_repeat) {
-    next(new AppError(`Los emails no coinciden`, 401));
+    return next(new AppError(`Los emails no coinciden`, 401));
   }
 
   if (new_email === sessionAccount.email) {
-    next(
-      new AppError(`La nueva direccion de correo debe ser diferente a la actual`, 401)
-    );
+    return next(new AppError(`La nueva direccion de correo debe ser diferente a la actual`, 401));
   }
 
   req.email = new_email;
@@ -233,7 +229,9 @@ exports.updatePasword = catchAsync(async (req, res, next) => {
   const { password, new_password, new_password_repeat } = req.body;
   const { sessionAccount } = req;
 
-  if (sessionAccount.password !== hashPassword(password)) {
+  const isValid = await comparePassword(password, sessionAccount.password);
+
+  if (!isValid) {
     return next(new AppError("Wrong password", 401));
   }
 
@@ -245,4 +243,3 @@ exports.updatePasword = catchAsync(async (req, res, next) => {
 
   next();
 });
-

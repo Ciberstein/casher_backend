@@ -1,4 +1,4 @@
-const hashPassword = require("../utils/hashPassword");
+const { hashPassword } = require("../utils/hashPassword");
 const catchAsync = require("../utils/catchAsync");
 const { generateJWT } = require("../utils/jwt");
 const jwt = require("jsonwebtoken");
@@ -27,7 +27,7 @@ exports.accountRecoveryPassword = catchAsync(async (req, res) => {
   const { code } = req;
 
   await code.account.update({
-    password: hashPassword(password),
+    password: await hashPassword(password),
   });
 
   return res.status(200).json({
@@ -163,7 +163,7 @@ exports.updatePassword = catchAsync(async (req, res) => {
   const { sessionAccount } = req;
 
   await sessionAccount.update({
-    password: hashPassword(String(password)),
+    password: await hashPassword(String(password)),
   });
 
   return res.status(200).json({

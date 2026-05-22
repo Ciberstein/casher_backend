@@ -43,8 +43,9 @@ exports.protect = catchAsync(async (req, res, next) => {
 exports.protectAccountOwner = catchAsync(async (req, res, next) => {
   const { user, sessionAccount } = req;
 
-  if (user.id !== sessionAccount.id)
-    next(new AppError("You do not own of this account", 401));
+  if (user.id !== sessionAccount.id) {
+    return next(new AppError("You do not own of this account", 401));
+  }
 
   next();
 });
@@ -87,9 +88,7 @@ exports.userHasCode = catchAsync(async (req, res, next) => {
       );
     }
 
-    await query.update({
-      code,
-    });
+    await query.update({ code });
   } else {
     await Codes.create({
       code,
@@ -105,11 +104,11 @@ exports.userHasCode = catchAsync(async (req, res, next) => {
 exports.sendMailCode = catchAsync(async (req, res, next) => {
   const { email, code } = req;
 
-  const body = `Hello, <br />Here you have a temporary security code for your account. 
+  const body = `Hello, <br />Here you have a temporary security code for your account.
     It can only be used once within the next ${formatTime(
       process.env.CODE_EXPIRE_IN * 1000
     )}, after which it will expire:<br /><br />
-    <b>${code}</b><br /><br />Did you receive this email without having an active request to enter a verification code? 
+    <b>${code}</b><br /><br />Did you receive this email without having an active request to enter a verification code?
     If so, the security of your account may be compromised. Please change your password as soon as possible.`;
 
   req.mail = await mailSender(email, "Security code", body);
@@ -122,14 +121,16 @@ exports.authCodeExist = catchAsync(async (req, res, next) => {
   const { code, accountId = sessionAccount.id } = req.body;
 
   const code_exist = await Codes.findOne({
-    where: { code, accountId, },
+    where: { code, accountId },
     include: [{
       model: User.Accounts,
       as: "account"
     }],
   });
 
-  if (!code_exist) next(new AppError("Invalid code", 401));
+  if (!code_exist) {
+    return next(new AppError("Invalid code", 401));
+  }
 
   req.code = code_exist;
 
@@ -144,7 +145,7 @@ exports.authCodeExpired = catchAsync(async (req, res, next) => {
   const dif = now - code.updatedAt;
 
   if (dif > limit) {
-    next(new AppError("Code expired", 401));
+    return next(new AppError("Code expired", 401));
   }
 
   next();
@@ -162,7 +163,7 @@ exports.authRefresh = catchAsync(async (req, _, next) => {
   const { cookies } = req;
 
   if (!cookies.token) {
-    next(new AppError("Missing token", 400));
+    return next(new AppError("Missing token", 400));
   }
 
   next();
