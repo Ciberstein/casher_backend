@@ -3,6 +3,8 @@ const Transfer = require("../models/transfers.model");
 const catchAsync = require("../utils/catchAsync");
 const generateHash = require("../utils/generateUUID");
 const User = require("../models/accounts.model");
+const { send } = require('../services/email.service');
+const { transferReceived, transferRequested } = require('../emails/templates');
 
 exports.sendPayment = catchAsync(async (req, res) => {
     const { account, sessionAccount, amountCOP } = req;
@@ -34,6 +36,10 @@ exports.sendPayment = catchAsync(async (req, res) => {
         hash,
         data
     });
+
+    const senderName = `${sessionAccount.data.first_name} ${sessionAccount.data.surname_1}`;
+    const { subject, html } = transferReceived({ senderName, amount: Number(amount), currency: currency || 'COP' });
+    send(account.email, subject, html);
 
     return res.status(202).json({
         status: "success",
@@ -67,6 +73,10 @@ exports.requestPayment = catchAsync(async (req, res) => {
         hash,
         data
     });
+
+    const requesterName = `${sessionAccount.data.first_name} ${sessionAccount.data.surname_1}`;
+    const { subject, html } = transferRequested({ requesterName, amount: Number(amount), currency: currency || 'COP' });
+    send(account.email, subject, html);
 
     return res.status(202).json({
         status: "success",
@@ -169,6 +179,16 @@ exports.updateTx = catchAsync(async (req, res) => {
     await transaction.update({
         status: status ? 'completed' : 'cancelled'
     });
+
+    if (status) {
+        const payerName = `${transaction.owner.data.first_name} ${transaction.owner.data.surname_1}`;
+        const { subject, html } = transferReceived({
+            senderName: payerName,
+            amount: transaction.data.amount,
+            currency: transaction.data.currency || 'COP',
+        });
+        send(transaction.receiver.email, subject, html);
+    }
 
     return res.status(200).json({
         status: "success",

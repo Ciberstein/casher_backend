@@ -8,6 +8,8 @@ const Withdrawal = require('./withdrawal.model');
 const DocumentType = require('./document_type.model');
 const Payment = require('./payment.model');
 const Recipient = require('./recipient.model');
+const AppBankAccount = require('./app_bank_account.model');
+const DepositRequest = require('./deposit_request.model');
 
 const initModel = () => {
 
@@ -41,6 +43,14 @@ const initModel = () => {
   User.Accounts.hasMany(Recipient, { foreignKey: 'accountId', as: 'recipients' });
   Recipient.belongsTo(User.Accounts, { foreignKey: 'accountId' });
   Recipient.belongsTo(User.Accounts, { foreignKey: 'recipientId', as: 'recipient' });
+
+  DocumentType.hasMany(AppBankAccount, { foreignKey: 'documentTypeId', as: 'appBankAccounts' });
+  AppBankAccount.belongsTo(DocumentType, { foreignKey: 'documentTypeId', as: 'documentType' });
+
+  User.Accounts.hasMany(DepositRequest, { foreignKey: 'accountId', as: 'depositRequests' });
+  DepositRequest.belongsTo(User.Accounts, { foreignKey: 'accountId', as: 'account' });
+  AppBankAccount.hasMany(DepositRequest, { foreignKey: 'appBankAccountId', as: 'depositRequests' });
+  DepositRequest.belongsTo(AppBankAccount, { foreignKey: 'appBankAccountId', as: 'appBankAccount' });
 
 };
 

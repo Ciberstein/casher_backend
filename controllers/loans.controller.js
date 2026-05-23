@@ -4,6 +4,8 @@ const Loan = require('../models/loan.model');
 const User = require('../models/accounts.model');
 const calculateOutstanding = require('../utils/loanCalculator');
 const getExchangeRate = require('../utils/exchangeRate');
+const { send } = require('../services/email.service');
+const { loanStatus } = require('../emails/templates');
 
 const withOutstanding = (loan) => ({
   ...loan.toJSON(),
@@ -67,16 +69,24 @@ exports.acceptLoan = catchAsync(async (req, res, next) => {
   await loan.update({ status: 'accepted', accepted_at: new Date() });
   await loan.account.increment('balance_available', { by: amountCOP });
 
+  const { subject, html } = loanStatus({ status: 'accepted', amount: loan.amount, currency: loan.currency, interestRate: loan.interest_rate });
+  send(loan.account.email, subject, html);
+
   return res.status(200).json({ status: 'success', message: 'Loan accepted' });
 });
 
 exports.rejectLoan = catchAsync(async (req, res, next) => {
-  const loan = await Loan.findByPk(req.params.id);
+  const loan = await Loan.findByPk(req.params.id, {
+    include: [{ model: User.Accounts, as: 'account' }],
+  });
 
   if (!loan) return next(new AppError('Loan not found', 404));
   if (loan.status !== 'pending') return next(new AppError('Loan is not pending', 400));
 
   await loan.update({ status: 'rejected' });
+
+  const { subject, html } = loanStatus({ status: 'rejected', amount: loan.amount, currency: loan.currency });
+  send(loan.account.email, subject, html);
 
   return res.status(200).json({ status: 'success', message: 'Loan rejected' });
 });

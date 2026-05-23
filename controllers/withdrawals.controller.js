@@ -5,6 +5,8 @@ const BankAccount = require('../models/bank_account.model');
 const User = require('../models/accounts.model');
 const getExchangeRate = require('../utils/exchangeRate');
 const { upload } = require('../services/cloudinary.service');
+const { send } = require('../services/email.service');
+const { withdrawalStatus } = require('../emails/templates');
 
 exports.createWithdrawal = catchAsync(async (req, res, next) => {
   const { bankAccountId, amount, currency } = req.body;
@@ -86,6 +88,9 @@ exports.acceptWithdrawal = catchAsync(async (req, res, next) => {
   await withdrawal.update({ status: 'accepted', screenshot });
   await withdrawal.account.decrement('balance_pending', { by: withdrawal.frozen_cop });
 
+  const { subject, html } = withdrawalStatus({ status: 'accepted', amount: withdrawal.amount, currency: withdrawal.currency });
+  send(withdrawal.account.email, subject, html);
+
   return res.status(200).json({ status: 'success', message: 'Withdrawal accepted' });
 });
 
@@ -117,12 +122,14 @@ exports.rejectWithdrawal = catchAsync(async (req, res, next) => {
   if (!withdrawal) return next(new AppError('Withdrawal not found', 404));
   if (withdrawal.status !== 'pending') return next(new AppError('Withdrawal is not pending', 400));
 
-  // Unfreeze: return from pending → available
   await withdrawal.update({ status: 'rejected' });
   await Promise.all([
     withdrawal.account.decrement('balance_pending', { by: withdrawal.frozen_cop }),
     withdrawal.account.increment('balance_available', { by: withdrawal.frozen_cop }),
   ]);
+
+  const { subject, html } = withdrawalStatus({ status: 'rejected', amount: withdrawal.amount, currency: withdrawal.currency });
+  send(withdrawal.account.email, subject, html);
 
   return res.status(200).json({ status: 'success', message: 'Withdrawal rejected' });
 });

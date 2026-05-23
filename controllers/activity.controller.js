@@ -5,6 +5,8 @@ const Withdrawal = require('../models/withdrawal.model');
 const Loan = require('../models/loan.model');
 const Payment = require('../models/payment.model');
 const BankAccount = require('../models/bank_account.model');
+const DepositRequest = require('../models/deposit_request.model');
+const AppBankAccount = require('../models/app_bank_account.model');
 const User = require('../models/accounts.model');
 
 exports.getActivity = catchAsync(async (req, res) => {
@@ -14,7 +16,7 @@ exports.getActivity = catchAsync(async (req, res) => {
 
   const queryLimit = all ? undefined : limit;
 
-  const [transactions, withdrawals, loans, payments] = await Promise.all([
+  const [transactions, withdrawals, loans, payments, deposits] = await Promise.all([
     Transfer.findAll({
       where: { [Op.or]: [{ accountId: sessionAccount.id }, { receiverId: sessionAccount.id }] },
       include: [
@@ -32,7 +34,7 @@ exports.getActivity = catchAsync(async (req, res) => {
     }),
     Withdrawal.findAll({
       where: { accountId: sessionAccount.id },
-      include: [{ model: BankAccount, as: 'bankAccount', attributes: ['bank_name'] }],
+      include: [{ model: BankAccount, as: 'bankAccount', attributes: ['bank_name', 'account_number'] }],
       order: [['createdAt', 'DESC']],
       ...(queryLimit && { limit: queryLimit }),
     }),
@@ -43,6 +45,12 @@ exports.getActivity = catchAsync(async (req, res) => {
     }),
     Payment.findAll({
       where: { accountId: sessionAccount.id },
+      order: [['createdAt', 'DESC']],
+      ...(queryLimit && { limit: queryLimit }),
+    }),
+    DepositRequest.findAll({
+      where: { accountId: sessionAccount.id },
+      include: [{ model: AppBankAccount, as: 'appBankAccount', attributes: ['bank_name', 'account_number'] }],
       order: [['createdAt', 'DESC']],
       ...(queryLimit && { limit: queryLimit }),
     }),
@@ -74,7 +82,7 @@ exports.getActivity = catchAsync(async (req, res) => {
       currency: w.currency,
       status: w.status,
       createdAt: w.createdAt,
-      meta: { bankName: w.bankAccount?.bank_name ?? null },
+      meta: { bankName: w.bankAccount?.bank_name ?? null, accountNumber: w.bankAccount?.account_number ?? null, screenshot: w.screenshot ?? null },
     })),
     ...loans.map((l) => ({
       kind: 'loan',
@@ -93,6 +101,20 @@ exports.getActivity = catchAsync(async (req, res) => {
       status: 'completed',
       createdAt: p.createdAt,
       meta: {},
+    })),
+    ...deposits.map((d) => ({
+      kind: 'deposit',
+      id: `dep-${d.id}`,
+      amount: d.amount,
+      currency: d.currency,
+      status: d.status,
+      createdAt: d.createdAt,
+      meta: {
+        bankName: d.appBankAccount?.bank_name ?? null,
+        accountNumber: d.appBankAccount?.account_number ?? null,
+        screenshot: d.screenshot,
+        depositId: d.id,
+      },
     })),
   ];
 

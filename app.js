@@ -24,6 +24,8 @@ const banks = require("./routes/banks.routes");
 const activity = require("./routes/activity.routes");
 const documentTypes = require("./routes/document_types.routes");
 const recipients = require("./routes/recipients.routes");
+const appBankAccounts = require("./routes/app_bank_accounts.routes");
+const depositRequests = require("./routes/deposit_requests.routes");
 
 if (process.env.NODE_ENV === "development") 
   app.use(morgan("dev"));
@@ -43,6 +45,8 @@ router.use("/banks", banks);
 router.use("/activity", activity);
 router.use("/document-types", documentTypes);
 router.use("/recipients", recipients);
+router.use("/app-bank-accounts", appBankAccounts);
+router.use("/deposit-requests", depositRequests);
 
 app.use("/api/v1", router);
 
