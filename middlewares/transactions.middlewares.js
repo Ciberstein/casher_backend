@@ -9,9 +9,9 @@ exports.validUser = catchAsync(async (req, res, next) => {
     const { sessionAccount } = req;
     const query = { status: "active" };
 
-    if(type == 1) 
+    if (type === 1 || type === '1')
         query.email = user.toLowerCase();
-    else if (type == 2)
+    else if (type === 2 || type === '2')
         query.username = user;
   
     const account = await User.Accounts.findOne({

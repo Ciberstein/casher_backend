@@ -16,7 +16,7 @@ exports.authCodeExist = async (req, res, next) => {
     }],
   });
 
-  if (!code_exist) next(new AppError("Invalid code", 401));
+  if (!code_exist) return next(new AppError("Invalid code", 401));
 
   req.code = code_exist;
 
@@ -53,7 +53,7 @@ exports.userHasCode = async (req, res, next) => {
     const limit = process.env.SENDMAIL_TIME_LIMIT;
 
     if (dif < limit) {
-      next(
+      return next(
         new AppError(
           `You must wait a few seconds before generating another code`,
           401
@@ -82,7 +82,7 @@ exports.authCodeExpired = async (req, res, next) => {
   const dif = now - code.updatedAt;
 
   if (dif > limit) {
-    next(new AppError("Code expired", 401));
+    return next(new AppError("Code expired", 401));
   }
 
   next();

@@ -41,8 +41,6 @@ exports.globalErrorHandler = (err, req, res, next) => {
   if (process.env.NODE_ENV === "production") {
     let error = err;
 
-    console.log(error.name);
-
     if (error.parent?.code === "22P02") error = handleCastError22P02();
     if (error.name === "TokenExpiredError") error = handleJWTExpiredError();
 

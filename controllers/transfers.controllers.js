@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 const Transfer = require("../models/transfers.model");
 const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
 const generateHash = require("../utils/generateUUID");
 const User = require("../models/accounts.model");
 const { send } = require('../services/email.service');
@@ -135,7 +136,6 @@ exports.getTransfers = catchAsync(async (req, res) => {
 
 exports.getPublicTransfer = catchAsync(async (req, res, next) => {
   const { hash } = req.params;
-  const AppError = require('../utils/appError');
 
   const transfer = await Transfer.findOne({
     where: { hash },

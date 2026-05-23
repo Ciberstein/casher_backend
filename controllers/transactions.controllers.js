@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 const Transaction = require("../models/transactions.model");
 const catchAsync = require("../utils/catchAsync");
+const AppError = require("../utils/appError");
 const generateHash = require("../utils/generateUUID");
 const User = require("../models/accounts.model");
 
@@ -78,11 +79,11 @@ exports.getTransactions = catchAsync(async (req, res) => {
     const { sessionAccount } = req;
     const { hash } = req.params;
 
-    const query = { 
-        [Op.or]: [{ 
-            accounntId: sessionAccount.id,
-            receiverId: sessionAccount.id,
-        }],
+    const query = {
+        [Op.or]: [
+            { accountId: sessionAccount.id },
+            { receiverId: sessionAccount.id },
+        ],
         attributes: ["id", "hash", "data", "status", "createdAt"],
         order: [['id', 'DESC']],        
         include: [
@@ -122,7 +123,6 @@ exports.getTransactions = catchAsync(async (req, res) => {
 
 exports.getPublicTransaction = catchAsync(async (req, res, next) => {
   const { hash } = req.params;
-  const AppError = require('../utils/appError');
 
   const transaction = await Transaction.findOne({
     where: { hash },

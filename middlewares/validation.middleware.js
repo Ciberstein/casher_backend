@@ -144,7 +144,7 @@ exports.validUser = [
     .notEmpty()
     .withMessage("User cannot be empty")
     .isLength({ min: 5 })
-    .withMessage("User must have at least 8 characters")
+    .withMessage("User must have at least 5 characters")
     .trim(),
 
   body("type")
