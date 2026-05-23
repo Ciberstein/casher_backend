@@ -5,6 +5,7 @@ const accountMiddleware = require("../middlewares/accounts.middleware");
 const authCodesMiddleware = require("../middlewares/auth.codes.middleware");
 const validation = require("../middlewares/validation.middleware");
 const authMiddleware = require("../middlewares/auth.middleware");
+const turnstileMiddleware = require("../middlewares/turnstile.middleware");
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -15,6 +16,7 @@ router.post(
 );
 router.post(
   "/register",
+  turnstileMiddleware.verifyTurnstile,
   validation.register,
   accountMiddleware.validRegisterAccount,
   accountMiddleware.passwordsMatch,
@@ -34,6 +36,7 @@ router.post(
 );
 router.post(
   "/login",
+  turnstileMiddleware.verifyTurnstile,
   validation.login,
   accountMiddleware.validExistAccount,
   accountMiddleware.validLoginAccount,
@@ -55,6 +58,7 @@ router.post(
 );
 router.post(
   "/recovery",
+  turnstileMiddleware.verifyTurnstile,
   validation.recovery,
   accountMiddleware.validAuthCodeReceipt,
   authCodesMiddleware.authCodeGenerate,
