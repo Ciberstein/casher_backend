@@ -7,6 +7,7 @@ const BankAccount = require('./bank_account.model');
 const Withdrawal = require('./withdrawal.model');
 const DocumentType = require('./document_type.model');
 const Payment = require('./payment.model');
+const Recipient = require('./recipient.model');
 
 const initModel = () => {
 
@@ -36,6 +37,10 @@ const initModel = () => {
 
   User.Accounts.hasMany(Payment, { foreignKey: 'accountId', as: 'payments' });
   Payment.belongsTo(User.Accounts, { foreignKey: 'accountId', as: 'account' });
+
+  User.Accounts.hasMany(Recipient, { foreignKey: 'accountId', as: 'recipients' });
+  Recipient.belongsTo(User.Accounts, { foreignKey: 'accountId' });
+  Recipient.belongsTo(User.Accounts, { foreignKey: 'recipientId', as: 'recipient' });
 
 };
 

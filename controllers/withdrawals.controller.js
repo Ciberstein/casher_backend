@@ -4,6 +4,7 @@ const Withdrawal = require('../models/withdrawal.model');
 const BankAccount = require('../models/bank_account.model');
 const User = require('../models/accounts.model');
 const getExchangeRate = require('../utils/exchangeRate');
+const { upload } = require('../services/cloudinary.service');
 
 exports.createWithdrawal = catchAsync(async (req, res, next) => {
   const { bankAccountId, amount, currency } = req.body;
@@ -71,8 +72,7 @@ exports.getPendingWithdrawals = catchAsync(async (req, res) => {
 });
 
 exports.acceptWithdrawal = catchAsync(async (req, res, next) => {
-  const { screenshot } = req.body;
-  if (!screenshot) return next(new AppError('Screenshot is required', 400));
+  if (!req.file) return next(new AppError('Screenshot is required', 400));
 
   const withdrawal = await Withdrawal.findByPk(req.params.id, {
     include: [{ model: User.Accounts, as: 'account' }],
@@ -81,7 +81,8 @@ exports.acceptWithdrawal = catchAsync(async (req, res, next) => {
   if (!withdrawal) return next(new AppError('Withdrawal not found', 404));
   if (withdrawal.status !== 'pending') return next(new AppError('Withdrawal is not pending', 400));
 
-  // Drain from pending (amount was already removed from available on creation)
+  const screenshot = await upload(req.file.buffer, 'vouchers', req.file.mimetype);
+
   await withdrawal.update({ status: 'accepted', screenshot });
   await withdrawal.account.decrement('balance_pending', { by: withdrawal.frozen_cop });
 

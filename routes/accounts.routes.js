@@ -1,4 +1,5 @@
 const express = require("express");
+const multer = require("multer");
 const accountController = require("../controllers/accounts.controller");
 const accountMiddleware = require("../middlewares/accounts.middleware");
 const authCodesMiddleware = require("../middlewares/auth.codes.middleware");
@@ -6,6 +7,7 @@ const validation = require("../middlewares/validation.middleware");
 const authMiddleware = require("../middlewares/auth.middleware");
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.post(
   "/check",
@@ -118,6 +120,11 @@ router.patch(
 router.patch(
   "/update/currency",
   accountController.updateCurrency
+);
+router.patch(
+  "/update/profile",
+  upload.single('avatar'),
+  accountController.updateProfile
 );
 router.patch(
   "/update/personal",

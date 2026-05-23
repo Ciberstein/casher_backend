@@ -163,6 +163,35 @@ exports.updateCurrency = catchAsync(async (req, res) => {
   });
 });
 
+exports.updateProfile = catchAsync(async (req, res, next) => {
+  const { username, deleteAvatar } = req.body;
+  const { sessionAccount } = req;
+
+  if (!username && !req.file && deleteAvatar !== 'true') return next(new AppError('Nada que actualizar', 400));
+
+  if (username) {
+    const taken = await User.Accounts.findOne({ where: { username } });
+    if (taken && taken.id !== sessionAccount.id) return next(new AppError('El nombre de usuario ya está en uso', 409));
+  }
+
+  const updates = {};
+  if (username) updates.username = username;
+
+  const { upload, destroy } = require('../services/cloudinary.service');
+
+  if (deleteAvatar === 'true' && sessionAccount.picture) {
+    await destroy(sessionAccount.picture);
+    updates.picture = null;
+  } else if (req.file) {
+    if (sessionAccount.picture) await destroy(sessionAccount.picture);
+    updates.picture = await upload(req.file.buffer, 'avatars', req.file.mimetype);
+  }
+
+  await sessionAccount.update(updates);
+
+  return res.status(200).json({ status: 'success', message: 'Perfil actualizado con éxito' });
+});
+
 exports.updatePersonalData = catchAsync(async (req, res) => {
   const {
     first_name,
