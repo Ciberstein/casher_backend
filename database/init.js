@@ -6,6 +6,7 @@ const DocumentType = require("../models/document_type.model");
 const SEED_BANKS = [
   { name: 'Bancolombia', logo: '🏦', country: 'CO' },
   { name: 'Nequi', logo: '💜', country: 'CO' },
+  { name: 'Binance', logo: '🟡', country: 'CO' },
 ];
 
 const SEED_DOCUMENT_TYPES = [
