@@ -60,7 +60,7 @@ const Accounts = db.define(
     interest_rate: {
       type: DataTypes.FLOAT,
       allowNull: false,
-      defaultValue: 1.5,
+      defaultValue: 0.7,
       field: "interest_rate",
     },
     currency: {
