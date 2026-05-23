@@ -7,12 +7,14 @@ const getExchangeRate = require('../utils/exchangeRate');
 const { send } = require('../services/email.service');
 const { loanStatus } = require('../emails/templates');
 
-const withOutstanding = (loan) => ({
-  ...loan.toJSON(),
-  outstanding: loan.status === 'accepted'
-    ? calculateOutstanding(loan.amount, loan.interest_rate, loan.accepted_at, loan.paid_amount)
-    : null,
-});
+const withOutstanding = (loan, rate = 1) => {
+  let outstanding = null;
+  if (loan.status === 'accepted') {
+    const raw = calculateOutstanding(loan.amount, loan.interest_rate, loan.accepted_at, loan.paid_amount);
+    outstanding = loan.currency === 'USD' ? raw * rate : raw;
+  }
+  return { ...loan.toJSON(), outstanding };
+};
 
 exports.createLoan = catchAsync(async (req, res) => {
   const { amount, currency } = req.body;
@@ -33,12 +35,12 @@ exports.createLoan = catchAsync(async (req, res) => {
 exports.getMyLoans = catchAsync(async (req, res) => {
   const { sessionAccount } = req;
 
-  const loans = await Loan.findAll({
-    where: { accountId: sessionAccount.id },
-    order: [['createdAt', 'DESC']],
-  });
+  const [loans, rate] = await Promise.all([
+    Loan.findAll({ where: { accountId: sessionAccount.id }, order: [['createdAt', 'DESC']] }),
+    getExchangeRate(),
+  ]);
 
-  return res.status(200).json(loans.map(withOutstanding));
+  return res.status(200).json(loans.map(loan => withOutstanding(loan, rate)));
 });
 
 exports.getPendingLoans = catchAsync(async (req, res) => {
@@ -46,13 +48,16 @@ exports.getPendingLoans = catchAsync(async (req, res) => {
   const history = req.query.history === 'true';
   const where = history ? { status: { [Op.ne]: 'pending' } } : { status: 'pending' };
 
-  const loans = await Loan.findAll({
-    where,
-    include: [{ model: User.Accounts, as: 'account', attributes: ['id', 'email', 'username'] }],
-    order: [['createdAt', 'DESC']],
-  });
+  const [loans, rate] = await Promise.all([
+    Loan.findAll({
+      where,
+      include: [{ model: User.Accounts, as: 'account', attributes: ['id', 'email', 'username'] }],
+      order: [['createdAt', 'DESC']],
+    }),
+    getExchangeRate(),
+  ]);
 
-  return res.status(200).json(loans.map(withOutstanding));
+  return res.status(200).json(loans.map(loan => withOutstanding(loan, rate)));
 });
 
 exports.acceptLoan = catchAsync(async (req, res, next) => {

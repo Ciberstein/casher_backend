@@ -80,12 +80,11 @@ exports.userHasCode = catchAsync(async (req, res, next) => {
     const limit = process.env.MAIL_SEND_LIMIT;
 
     if (dif < limit) {
-      return next(
-        new AppError(
-          `You must wait a few seconds before generating another code`,
-          401
-        )
-      );
+      // Within rate limit — reuse existing code without sending a new email
+      req.code = query.code;
+      req.skipMail = true;
+      req.email = email || account.email;
+      return next();
     }
 
     await query.update({ code });
@@ -102,7 +101,12 @@ exports.userHasCode = catchAsync(async (req, res, next) => {
 });
 
 exports.sendMailCode = catchAsync(async (req, res, next) => {
-  const { email, code } = req;
+  const { email, code, skipMail } = req;
+
+  if (skipMail) {
+    req.mail = true;
+    return next();
+  }
 
   const body = `Hello, <br />Here you have a temporary security code for your account.
     It can only be used once within the next ${formatTime(

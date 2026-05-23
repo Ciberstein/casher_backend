@@ -251,14 +251,18 @@ exports.payBalance = catchAsync(async (req, res, next) => {
     order: [['accepted_at', 'ASC']],
   });
 
-  // Freeze outstandings at a single point in time to avoid re-calculating
-  // inside the loop (continuous interest growth makes apply >= outstanding
-  // never true when paying off the full balance).
+  // Freeze outstandings (in each loan's own currency) at a single point in
+  // time to avoid re-calculating inside the loop.
   const outstandings = activeLoans.map(loan =>
     calculateOutstanding(loan.amount, loan.interest_rate, loan.accepted_at, loan.paid_amount)
   );
 
-  const totalPending = outstandings.reduce((sum, o) => sum + o, 0);
+  // Convert all outstandings to COP for comparison and distribution.
+  const outstandingsCOP = outstandings.map((o, i) =>
+    activeLoans[i].currency === 'USD' ? o * rate : o
+  );
+
+  const totalPending = outstandingsCOP.reduce((sum, o) => sum + o, 0);
 
   if (totalPending <= 0) return next(new AppError('No tienes deuda pendiente', 400));
   // Allow up to 1 COP of rounding tolerance so a display-rounded payment
@@ -269,18 +273,21 @@ exports.payBalance = catchAsync(async (req, res, next) => {
   for (let i = 0; i < activeLoans.length; i++) {
     if (remaining <= 0) break;
     const loan = activeLoans[i];
-    const outstanding = outstandings[i];
-    if (outstanding <= 0) continue;
+    const outstandingCOP = outstandingsCOP[i];
+    if (outstandingCOP <= 0) continue;
 
-    const apply = Math.min(remaining, outstanding);
-    remaining -= apply;
+    const applyCOP = Math.min(remaining, outstandingCOP);
+    remaining -= applyCOP;
+
+    // Store paid_amount in the loan's own currency.
+    const applyLoan = loan.currency === 'USD' ? applyCOP / rate : applyCOP;
 
     // Treat as fully paid if within 1 COP of the outstanding — covers
     // floating-point drift and display-rounding from the frontend.
-    if (outstanding - apply < 1) {
-      await loan.update({ status: 'paid', paid_amount: loan.paid_amount + apply });
+    if (outstandingCOP - applyCOP < 1) {
+      await loan.update({ status: 'paid', paid_amount: loan.paid_amount + applyLoan });
     } else {
-      await loan.update({ paid_amount: loan.paid_amount + apply });
+      await loan.update({ paid_amount: loan.paid_amount + applyLoan });
     }
   }
 
