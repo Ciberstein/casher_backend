@@ -4,8 +4,8 @@ const { db } = require('../database/config');
 const DepositRequest = db.define('deposit_requests', {
   id: { primaryKey: true, autoIncrement: true, type: DataTypes.INTEGER, allowNull: false },
   amount: { type: DataTypes.FLOAT, allowNull: false },
-  currency: { type: DataTypes.ENUM('COP', 'USD'), allowNull: false },
-  deposit_cop: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
+  currency: { type: DataTypes.STRING(10), allowNull: false },
+  deposit_amount: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
   screenshot: { type: DataTypes.TEXT, allowNull: false },
   status: {
     type: DataTypes.ENUM('pending', 'accepted', 'rejected', 'cancelled'),

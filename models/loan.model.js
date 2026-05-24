@@ -4,7 +4,7 @@ const { db } = require('../database/config');
 const Loan = db.define('loans', {
   id: { primaryKey: true, autoIncrement: true, type: DataTypes.INTEGER, allowNull: false },
   amount: { type: DataTypes.FLOAT, allowNull: false },
-  currency: { type: DataTypes.ENUM('COP', 'USD'), allowNull: false, defaultValue: 'COP' },
+  currency: { type: DataTypes.STRING(10), allowNull: false, defaultValue: 'COP' },
   interest_rate: { type: DataTypes.FLOAT, allowNull: false },
   status: {
     type: DataTypes.ENUM('pending', 'accepted', 'rejected', 'paid', 'cancelled'),

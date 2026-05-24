@@ -3,7 +3,7 @@ const AppError = require('../utils/appError');
 const Withdrawal = require('../models/withdrawal.model');
 const BankAccount = require('../models/bank_account.model');
 const User = require('../models/accounts.model');
-const getExchangeRate = require('../utils/exchangeRate');
+const getBalance = require('../utils/getBalance');
 const { upload } = require('../services/cloudinary.service');
 const { send } = require('../services/email.service');
 const { withdrawalStatus } = require('../emails/templates');
@@ -17,28 +17,19 @@ exports.createWithdrawal = catchAsync(async (req, res, next) => {
   const bankAccount = await BankAccount.findOne({
     where: { id: bankAccountId, accountId: sessionAccount.id, status: 'active' },
   });
-
   if (!bankAccount) return next(new AppError('Bank account not found', 404));
 
-  const rate = await getExchangeRate();
-  const frozen_cop = currency === 'USD' ? amount * rate : amount;
-
-  if (sessionAccount.balance_available < frozen_cop) {
+  const balance = await getBalance(sessionAccount.id, currency);
+  if (Number(balance.amount) < Number(amount))
     return next(new AppError('Insufficient balance', 400));
-  }
 
-  // Freeze the amount: move from available → pending
-  await Promise.all([
-    sessionAccount.decrement('balance_available', { by: frozen_cop }),
-    sessionAccount.increment('balance_pending', { by: frozen_cop }),
-  ]);
+  await balance.decrement('amount', { by: Number(amount) });
 
   await Withdrawal.create({
-    amount,
-    currency: currency || sessionAccount.currency,
+    amount: Number(amount),
+    currency,
     accountId: sessionAccount.id,
     bankAccountId,
-    frozen_cop,
   });
 
   return res.status(201).json({ status: 'success' });
@@ -84,9 +75,7 @@ exports.acceptWithdrawal = catchAsync(async (req, res, next) => {
   if (withdrawal.status !== 'pending') return next(new AppError('Withdrawal is not pending', 400));
 
   const screenshot = await upload(req.file.buffer, 'vouchers', req.file.mimetype);
-
   await withdrawal.update({ status: 'accepted', screenshot });
-  await withdrawal.account.decrement('balance_pending', { by: withdrawal.frozen_cop });
 
   const { subject, html } = withdrawalStatus({ status: 'accepted', amount: withdrawal.amount, currency: withdrawal.currency });
   send(withdrawal.account.email, subject, html);
@@ -99,17 +88,15 @@ exports.cancelWithdrawal = catchAsync(async (req, res, next) => {
 
   const withdrawal = await Withdrawal.findOne({
     where: { id: req.params.id, accountId: sessionAccount.id },
-    include: [{ model: User.Accounts, as: 'account' }],
   });
 
   if (!withdrawal) return next(new AppError('Withdrawal not found', 404));
   if (withdrawal.status !== 'pending') return next(new AppError('Solo puedes cancelar retiros pendientes', 400));
 
   await withdrawal.update({ status: 'cancelled' });
-  await Promise.all([
-    withdrawal.account.decrement('balance_pending', { by: withdrawal.frozen_cop }),
-    withdrawal.account.increment('balance_available', { by: withdrawal.frozen_cop }),
-  ]);
+
+  const balance = await getBalance(sessionAccount.id, withdrawal.currency);
+  await balance.increment('amount', { by: withdrawal.amount });
 
   return res.status(200).json({ status: 'success', message: 'Withdrawal cancelled' });
 });
@@ -123,10 +110,9 @@ exports.rejectWithdrawal = catchAsync(async (req, res, next) => {
   if (withdrawal.status !== 'pending') return next(new AppError('Withdrawal is not pending', 400));
 
   await withdrawal.update({ status: 'rejected' });
-  await Promise.all([
-    withdrawal.account.decrement('balance_pending', { by: withdrawal.frozen_cop }),
-    withdrawal.account.increment('balance_available', { by: withdrawal.frozen_cop }),
-  ]);
+
+  const balance = await getBalance(withdrawal.accountId, withdrawal.currency);
+  await balance.increment('amount', { by: withdrawal.amount });
 
   const { subject, html } = withdrawalStatus({ status: 'rejected', amount: withdrawal.amount, currency: withdrawal.currency });
   send(withdrawal.account.email, subject, html);

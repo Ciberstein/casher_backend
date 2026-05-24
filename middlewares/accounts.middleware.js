@@ -22,6 +22,10 @@ exports.firebase = catchAsync(async (req, res, next) => {
     return res.status(201).send(data);
   }
 
+  if (data.picture && account.picture !== data.picture) {
+    await account.update({ picture: data.picture });
+  }
+
   req.account = account;
 
   next();

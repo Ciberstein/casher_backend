@@ -10,6 +10,7 @@ const Payment = require('./payment.model');
 const Recipient = require('./recipient.model');
 const AppBankAccount = require('./app_bank_account.model');
 const DepositRequest = require('./deposit_request.model');
+const AccountBalance = require('./account_balance.model');
 
 const initModel = () => {
 
@@ -51,6 +52,9 @@ const initModel = () => {
   DepositRequest.belongsTo(User.Accounts, { foreignKey: 'accountId', as: 'account' });
   AppBankAccount.hasMany(DepositRequest, { foreignKey: 'appBankAccountId', as: 'depositRequests' });
   DepositRequest.belongsTo(AppBankAccount, { foreignKey: 'appBankAccountId', as: 'appBankAccount' });
+
+  User.Accounts.hasMany(AccountBalance, { onDelete: 'CASCADE', foreignKey: 'accountId', as: 'balances' });
+  AccountBalance.belongsTo(User.Accounts, { foreignKey: 'accountId', as: 'account' });
 
 };
 

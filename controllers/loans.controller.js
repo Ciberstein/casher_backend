@@ -3,18 +3,16 @@ const AppError = require('../utils/appError');
 const Loan = require('../models/loan.model');
 const User = require('../models/accounts.model');
 const calculateOutstanding = require('../utils/loanCalculator');
-const getExchangeRate = require('../utils/exchangeRate');
+const getBalance = require('../utils/getBalance');
 const { send } = require('../services/email.service');
 const { loanStatus } = require('../emails/templates');
 
-const withOutstanding = (loan, rate = 1) => {
-  let outstanding = null;
-  if (loan.status === 'accepted') {
-    const raw = calculateOutstanding(loan.amount, loan.interest_rate, loan.accepted_at, loan.paid_amount);
-    outstanding = loan.currency === 'USD' ? raw * rate : raw;
-  }
-  return { ...loan.toJSON(), outstanding };
-};
+const withOutstanding = (loan) => ({
+  ...loan.toJSON(),
+  outstanding: loan.status === 'accepted'
+    ? calculateOutstanding(loan.amount, loan.interest_rate, loan.accepted_at, loan.paid_amount)
+    : null,
+});
 
 exports.createLoan = catchAsync(async (req, res) => {
   const { amount, currency } = req.body;
@@ -23,8 +21,8 @@ exports.createLoan = catchAsync(async (req, res) => {
   if (!amount || amount <= 0) return res.status(400).json({ message: 'Invalid amount' });
 
   const loan = await Loan.create({
-    amount,
-    currency: currency || sessionAccount.currency,
+    amount: Number(amount),
+    currency,
     interest_rate: sessionAccount.interest_rate,
     accountId: sessionAccount.id,
   });
@@ -35,12 +33,9 @@ exports.createLoan = catchAsync(async (req, res) => {
 exports.getMyLoans = catchAsync(async (req, res) => {
   const { sessionAccount } = req;
 
-  const [loans, rate] = await Promise.all([
-    Loan.findAll({ where: { accountId: sessionAccount.id }, order: [['createdAt', 'DESC']] }),
-    getExchangeRate(),
-  ]);
+  const loans = await Loan.findAll({ where: { accountId: sessionAccount.id }, order: [['createdAt', 'DESC']] });
 
-  return res.status(200).json(loans.map(loan => withOutstanding(loan, rate)));
+  return res.status(200).json(loans.map(withOutstanding));
 });
 
 exports.getPendingLoans = catchAsync(async (req, res) => {
@@ -48,16 +43,13 @@ exports.getPendingLoans = catchAsync(async (req, res) => {
   const history = req.query.history === 'true';
   const where = history ? { status: { [Op.ne]: 'pending' } } : { status: 'pending' };
 
-  const [loans, rate] = await Promise.all([
-    Loan.findAll({
-      where,
-      include: [{ model: User.Accounts, as: 'account', attributes: ['id', 'email', 'username'] }],
-      order: [['createdAt', 'DESC']],
-    }),
-    getExchangeRate(),
-  ]);
+  const loans = await Loan.findAll({
+    where,
+    include: [{ model: User.Accounts, as: 'account', attributes: ['id', 'email', 'username'] }],
+    order: [['createdAt', 'DESC']],
+  });
 
-  return res.status(200).json(loans.map(loan => withOutstanding(loan, rate)));
+  return res.status(200).json(loans.map(withOutstanding));
 });
 
 exports.acceptLoan = catchAsync(async (req, res, next) => {
@@ -68,11 +60,10 @@ exports.acceptLoan = catchAsync(async (req, res, next) => {
   if (!loan) return next(new AppError('Loan not found', 404));
   if (loan.status !== 'pending') return next(new AppError('Loan is not pending', 400));
 
-  const rate = await getExchangeRate();
-  const amountCOP = loan.currency === 'USD' ? loan.amount * rate : loan.amount;
-
   await loan.update({ status: 'accepted', accepted_at: new Date() });
-  await loan.account.increment('balance_available', { by: amountCOP });
+
+  const balance = await getBalance(loan.accountId, loan.currency);
+  await balance.increment('amount', { by: loan.amount });
 
   const { subject, html } = loanStatus({ status: 'accepted', amount: loan.amount, currency: loan.currency, interestRate: loan.interest_rate });
   send(loan.account.email, subject, html);

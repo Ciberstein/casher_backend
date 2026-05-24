@@ -33,18 +33,6 @@ const Accounts = db.define(
       allowNull: false,
       field: "password",
     },
-    balance_available: {
-      type: DataTypes.FLOAT,
-      allowNull: false,
-      defaultValue: 0,
-      field: "balance_available",
-    },
-    balance_pending: {
-      type: DataTypes.FLOAT,
-      allowNull: false,
-      defaultValue: 0,
-      field: "balance_pending",
-    },
     role: {
       type: DataTypes.ENUM("user", "admin"),
       allowNull: false,
@@ -64,7 +52,7 @@ const Accounts = db.define(
       field: "interest_rate",
     },
     currency: {
-      type: DataTypes.ENUM("COP", "USD"),
+      type: DataTypes.STRING(10),
       allowNull: false,
       defaultValue: "COP",
       field: "currency",

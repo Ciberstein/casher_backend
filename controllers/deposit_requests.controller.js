@@ -3,7 +3,7 @@ const AppError = require('../utils/appError');
 const DepositRequest = require('../models/deposit_request.model');
 const AppBankAccount = require('../models/app_bank_account.model');
 const User = require('../models/accounts.model');
-const getExchangeRate = require('../utils/exchangeRate');
+const getBalance = require('../utils/getBalance');
 const { upload } = require('../services/cloudinary.service');
 const { send } = require('../services/email.service');
 const { depositStatus } = require('../emails/templates');
@@ -19,15 +19,12 @@ exports.createDepositRequest = catchAsync(async (req, res, next) => {
   const appBankAccount = await AppBankAccount.findOne({ where: { id: appBankAccountId, status: 'active' } });
   if (!appBankAccount) return next(new AppError('Bank account not found', 404));
 
-  const rate = await getExchangeRate();
-  const deposit_cop = currency === 'USD' ? Number(amount) * rate : Number(amount);
-
   const screenshot = await upload(req.file.buffer, 'vouchers', req.file.mimetype);
 
   await DepositRequest.create({
     amount: Number(amount),
     currency,
-    deposit_cop,
+    deposit_amount: Number(amount),
     screenshot,
     accountId: sessionAccount.id,
     appBankAccountId: Number(appBankAccountId),
@@ -74,9 +71,11 @@ exports.acceptDepositRequest = catchAsync(async (req, res, next) => {
   if (request.status !== 'pending') return next(new AppError('Request is not pending', 400));
 
   await request.update({ status: 'accepted' });
-  await request.account.increment('balance_available', { by: request.deposit_cop });
 
-  const { subject, html } = depositStatus({ status: 'accepted', amount: request.amount, currency: request.currency });
+  const balance = await getBalance(request.accountId, request.currency);
+  await balance.increment('amount', { by: request.deposit_amount });
+
+  const { subject, html } = depositStatus({ status: 'accepted', amount: request.deposit_amount, currency: request.currency });
   send(request.account.email, subject, html);
 
   return res.status(200).json({ status: 'success' });
@@ -92,7 +91,7 @@ exports.rejectDepositRequest = catchAsync(async (req, res, next) => {
 
   await request.update({ status: 'rejected' });
 
-  const { subject, html } = depositStatus({ status: 'rejected', amount: request.amount, currency: request.currency });
+  const { subject, html } = depositStatus({ status: 'rejected', amount: request.deposit_amount, currency: request.currency });
   send(request.account.email, subject, html);
 
   return res.status(200).json({ status: 'success' });
