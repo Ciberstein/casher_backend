@@ -285,6 +285,75 @@ exports.payBalance = catchAsync(async (req, res, next) => {
   return res.status(200).json({ status: 'success', message: 'Abono realizado con éxito' });
 });
 
+exports.getUsers = catchAsync(async (req, res) => {
+  const users = await User.Accounts.findAll({
+    attributes: ['id', 'email', 'username', 'role', 'status', 'interest_rate', 'picture', 'createdAt'],
+    include: [{ model: User.Data, as: 'data', attributes: ['first_name', 'middle_name', 'surname_1', 'surname_2'] }],
+    order: [['createdAt', 'DESC']],
+  });
+  return res.status(200).json(users);
+});
+
+exports.adminUpdateUser = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const { username, email, interest_rate, status, first_name, middle_name, surname_1, surname_2 } = req.body;
+
+  const user = await User.Accounts.findByPk(id, {
+    include: [{ model: User.Data, as: 'data' }],
+  });
+  if (!user) return next(new AppError('Usuario no encontrado', 404));
+
+  const accountUpdates = {};
+  if (username !== undefined) {
+    const taken = await User.Accounts.findOne({ where: { username } });
+    if (taken && taken.id !== Number(id)) return next(new AppError('El nombre de usuario ya está en uso', 409));
+    accountUpdates.username = username;
+  }
+  if (email !== undefined) {
+    const emailLower = email.toLowerCase();
+    const taken = await User.Accounts.findOne({ where: { email: emailLower } });
+    if (taken && taken.id !== Number(id)) return next(new AppError('El correo ya está en uso', 409));
+    accountUpdates.email = emailLower;
+  }
+  if (interest_rate !== undefined) accountUpdates.interest_rate = Number(interest_rate);
+  if (status !== undefined) accountUpdates.status = status;
+
+  if (Object.keys(accountUpdates).length > 0) await user.update(accountUpdates);
+
+  const dataUpdates = {};
+  if (first_name !== undefined) dataUpdates.first_name = first_name;
+  if (middle_name !== undefined) dataUpdates.middle_name = middle_name || null;
+  if (surname_1 !== undefined) dataUpdates.surname_1 = surname_1;
+  if (surname_2 !== undefined) dataUpdates.surname_2 = surname_2 || null;
+
+  if (Object.keys(dataUpdates).length > 0) await user.data.update(dataUpdates);
+
+  return res.status(200).json({ status: 'success', message: 'Usuario actualizado' });
+});
+
+exports.adminUpdateUserPicture = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const { deleteAvatar } = req.body;
+
+  const user = await User.Accounts.findByPk(id);
+  if (!user) return next(new AppError('Usuario no encontrado', 404));
+
+  const { upload, destroy } = require('../services/cloudinary.service');
+
+  if (deleteAvatar === 'true') {
+    if (user.picture) await destroy(user.picture);
+    await user.update({ picture: null });
+  } else if (req.file) {
+    if (user.picture) await destroy(user.picture);
+    const pictureUrl = await upload(req.file.buffer, 'avatars', req.file.mimetype);
+    await user.update({ picture: pictureUrl });
+  } else {
+    return next(new AppError('Nada que actualizar', 400));
+  }
+
+  return res.status(200).json({ status: 'success', message: 'Imagen actualizada' });
+});
+
 exports.authRefresh = catchAsync(async (req, res) => {
   const { cookies } = req;
 

@@ -40,6 +40,13 @@ exports.protect = catchAsync(async (req, res, next) => {
   next();
 });
 
+exports.isAdmin = (req, res, next) => {
+  if (req.sessionAccount.role !== 'admin') {
+    return next(new AppError('Acceso denegado', 403));
+  }
+  next();
+};
+
 exports.protectAccountOwner = catchAsync(async (req, res, next) => {
   const { user, sessionAccount } = req;
 
