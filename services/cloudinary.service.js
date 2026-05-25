@@ -17,7 +17,7 @@ const upload = async (buffer, folder, mimetype) => {
   const resourceType = mimetype.startsWith('image/') ? 'image' : 'raw';
   const b64 = Buffer.from(buffer).toString('base64');
   const dataUri = `data:${mimetype};base64,${b64}`;
-  const result = await cloudinary.uploader.upload(dataUri, { folder, resource_type: resourceType });
+  const result = await cloudinary.uploader.upload(dataUri, { folder: `casher/${folder}`, resource_type: resourceType });
   return result.secure_url;
 };
 
