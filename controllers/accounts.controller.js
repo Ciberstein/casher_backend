@@ -285,13 +285,41 @@ exports.payBalance = catchAsync(async (req, res, next) => {
   return res.status(200).json({ status: 'success', message: 'Abono realizado con éxito' });
 });
 
+// GET /admin/users?page=1&limit=10&search=texto
+// Paginación y búsqueda en el servidor. Responde { data, total, page, pages, limit }.
 exports.getUsers = catchAsync(async (req, res) => {
-  const users = await User.Accounts.findAll({
+  const { Op } = require("sequelize");
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 100);
+  const requested = Math.max(parseInt(req.query.page, 10) || 1, 1);
+  const search = String(req.query.search ?? '').trim();
+  const like = `%${search.replace(/[\\%_]/g, '\\$&')}%`; // % y _ son comodines en LIKE: se escapan
+
+  const where = search
+    ? {
+        [Op.or]: [
+          { username: { [Op.iLike]: like } },
+          { email: { [Op.iLike]: like } },
+          { '$data.first_name$': { [Op.iLike]: like } },
+          { '$data.surname_1$': { [Op.iLike]: like } },
+        ],
+      }
+    : {};
+
+  const query = {
+    where,
     attributes: ['id', 'email', 'username', 'role', 'status', 'interest_rate', 'picture', 'createdAt'],
     include: [{ model: User.Data, as: 'data', attributes: ['first_name', 'middle_name', 'surname_1', 'surname_2'] }],
-    order: [['createdAt', 'DESC']],
-  });
-  return res.status(200).json(users);
+    order: [['createdAt', 'DESC'], ['id', 'DESC']],
+    distinct: true,
+  };
+
+  const total = await User.Accounts.count({ where, include: query.include, distinct: true });
+  const pages = Math.max(Math.ceil(total / limit), 1);
+  const page = Math.min(requested, pages);
+
+  const data = await User.Accounts.findAll({ ...query, limit, offset: (page - 1) * limit, subQuery: false });
+
+  return res.status(200).json({ data, total, page, pages, limit });
 });
 
 exports.adminUpdateUser = catchAsync(async (req, res, next) => {
