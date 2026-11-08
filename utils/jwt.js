@@ -1,8 +1,9 @@
 const jwt = require("jsonwebtoken");
 
-const generateJWT = (id) => {
+// `sid` liga el token a una fila de auth_sessions: si la sesión se cierra, el token deja de servir
+const generateJWT = (id, sid) => {
   return new Promise((resolve, reject) => {
-    const payload = { id };
+    const payload = sid ? { id, sid } : { id };
 
     jwt.sign(
       payload,

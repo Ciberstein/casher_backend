@@ -3,6 +3,7 @@ const rateLimit = require("express-rate-limit");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const accountController = require("../controllers/accounts.controller");
+const sessionsController = require("../controllers/sessions.controller");
 const accountMiddleware = require("../middlewares/accounts.middleware");
 const authCodesMiddleware = require("../middlewares/auth.codes.middleware");
 const validation = require("../middlewares/validation.middleware");
@@ -130,6 +131,13 @@ router.patch("/admin/users/:id/picture",authMiddleware.isAdmin, upload.single('a
 router.post("/2fa/setup", accountController.twoFactorSetup);
 router.post("/2fa/enable", twoFactorLimiter, accountController.twoFactorEnable);
 router.post("/2fa/disable", twoFactorLimiter, accountController.twoFactorDisable);
+
+router.get("/sessions", sessionsController.listSessions);
+router.delete("/sessions", sessionsController.revokeOtherSessions);
+router.delete("/sessions/:id", sessionsController.revokeSession);
+router.get("/trusted-devices", sessionsController.listTrustedDevices);
+router.post("/trusted-devices", sessionsController.addTrustedDevice);
+router.delete("/trusted-devices/:id", sessionsController.revokeTrustedDevice);
 
 router.get("/", accountController.getAccountData);
 router.post("/pay", accountController.payBalance);

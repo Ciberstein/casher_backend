@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "bowser": "^2.11.0",
     "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -20,6 +21,7 @@
     "express-rate-limit": "^6.7.0",
     "express-validator": "^7.0.1",
     "firebase-admin": "^13.2.0",
+    "geoip-lite": "^1.4.10",
     "jsonwebtoken": "^9.0.0",
     "morgan": "^1.10.0",
     "multer": "^2.1.1",

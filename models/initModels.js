@@ -11,6 +11,8 @@ const Recipient = require('./recipient.model');
 const AppBankAccount = require('./app_bank_account.model');
 const DepositRequest = require('./deposit_request.model');
 const AccountBalance = require('./account_balance.model');
+const Session = require('./session.model');
+const TrustedDevice = require('./trusted_device.model');
 
 const initModel = () => {
 
@@ -55,6 +57,12 @@ const initModel = () => {
 
   User.Accounts.hasMany(AccountBalance, { onDelete: 'CASCADE', foreignKey: 'accountId', as: 'balances' });
   AccountBalance.belongsTo(User.Accounts, { foreignKey: 'accountId', as: 'account' });
+
+  User.Accounts.hasMany(Session, { onDelete: 'CASCADE', foreignKey: 'accountId', as: 'sessions' });
+  Session.belongsTo(User.Accounts, { foreignKey: 'accountId', as: 'account' });
+
+  User.Accounts.hasMany(TrustedDevice, { onDelete: 'CASCADE', foreignKey: 'accountId', as: 'trustedDevices' });
+  TrustedDevice.belongsTo(User.Accounts, { foreignKey: 'accountId', as: 'account' });
 
 };
 

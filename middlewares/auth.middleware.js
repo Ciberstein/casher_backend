@@ -7,6 +7,7 @@ const Codes = require("../models/auth.codes.model");
 const formatTime = require("../utils/formatTime");
 const mailSender = require("../mail/mailSender");
 const User = require("../models/accounts.model");
+const Session = require("../models/session.model");
 
 exports.protect = catchAsync(async (req, res, next) => {
   let token;
@@ -25,6 +26,23 @@ exports.protect = catchAsync(async (req, res, next) => {
     decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET_SEED);
   } catch (error) {
     return next(new AppError('Invalid token. Please login again', 401));
+  }
+
+  // Un token ligado a una sesión solo vale mientras esa sesión exista (cerrarla es inmediato).
+  // Los tokens anteriores a las sesiones no traen `sid` y se adoptan en la próxima renovación.
+  if (decoded.sid) {
+    const session = await Session.findByPk(decoded.sid, { attributes: ["id", "accountId", "last_seen_at"] });
+
+    if (!session || session.accountId !== decoded.id) {
+      return next(new AppError('Session closed. Please login again', 401));
+    }
+
+    // Marca de actividad, con tope de una escritura cada 5 minutos
+    if (Date.now() - new Date(session.last_seen_at).getTime() > 5 * 60 * 1000) {
+      await session.update({ last_seen_at: new Date() });
+    }
+
+    req.sessionId = session.id;
   }
 
   const account = await User.Accounts.findOne({

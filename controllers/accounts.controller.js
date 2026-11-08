@@ -12,7 +12,10 @@ const {
 } = require("../utils/twoFactor");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
+const { startSession, trustDevice, revokeAll, IDLE_MS, cookieOpts } = require("../utils/sessions");
 const { generateJWT } = require("../utils/jwt");
+const Session = require("../models/session.model");
+const TrustedDevice = require("../models/trusted_device.model");
 const jwt = require("jsonwebtoken");
 const User = require("../models/accounts.model");
 const Loan = require("../models/loan.model");
@@ -56,6 +59,8 @@ exports.accountRecoveryPassword = catchAsync(async (req, res) => {
   await code.account.update({
     password: await hashPassword(password),
   });
+  // Si se restablece la contraseña es porque no se confía en quien pudiera tener acceso
+  await revokeAll(code.account.id);
 
   return res.status(200).json({
     status: "success",
@@ -108,6 +113,12 @@ exports.validateAccount = catchAsync(async (req, res) => {
 });
 
 exports.logout = catchAsync(async (req, res) => {
+  // Cierra también la sesión en el servidor (si el token es nuestro, aunque haya expirado)
+  try {
+    const { sid } = jwt.verify(req.cookies.token, process.env.JWT_SECRET_SEED, { ignoreExpiration: true });
+    if (sid) await Session.destroy({ where: { id: sid } });
+  } catch { /* sin cookie o token inválido: solo se limpia */ }
+
   res.clearCookie('token');
   res.send('Logged out');
 });
@@ -131,7 +142,7 @@ const checkSecondFactor = async (account, code) => {
 
 // Segundo paso del login: canjea el challenge + código por la sesión
 exports.loginTwoFactor = catchAsync(async (req, res, next) => {
-  const { challenge, code } = req.body;
+  const { challenge, code, trustDevice: trust } = req.body;
 
   let decoded;
   try {
@@ -147,13 +158,10 @@ exports.loginTwoFactor = catchAsync(async (req, res, next) => {
   if (!account || !(await checkSecondFactor(account, code)))
     return next(new AppError('Código incorrecto', 401));
 
-  const token = await generateJWT(account.id);
+  await startSession(req, res, account.id);
+  if (trust === true) await trustDevice(req, res, account.id);
 
-  return res.cookie('token', token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'strict',
-  }).status(200).json({
+  return res.status(200).json({
     status: 'success',
     message: 'Account has been logged',
   });
@@ -210,6 +218,7 @@ exports.twoFactorDisable = catchAsync(async (req, res, next) => {
     two_factor_secret: null,
     two_factor_backup_codes: null,
   });
+  await TrustedDevice.destroy({ where: { accountId: account.id } });
 
   return res.status(200).json({ status: 'success', message: 'Verificación en dos pasos desactivada' });
 });
@@ -379,6 +388,8 @@ exports.updatePassword = catchAsync(async (req, res) => {
   await sessionAccount.update({
     password: await hashPassword(String(password)),
   });
+  // Cambiar la contraseña cierra el resto de sesiones y retira los dispositivos de confianza
+  await revokeAll(sessionAccount.id, { exceptSessionId: req.sessionId });
 
   return res.status(200).json({
     status: "success",
@@ -526,6 +537,7 @@ exports.adminUpdateUserPassword = catchAsync(async (req, res, next) => {
   if (!user) return next(new AppError('Usuario no encontrado', 404));
 
   await user.update({ password: await hashPassword(password) });
+  await revokeAll(user.id);
 
   return res.status(200).json({ status: 'success', message: 'Contraseña actualizada' });
 });
@@ -553,18 +565,38 @@ exports.adminUpdateUserPicture =catchAsync(async (req, res, next) => {
   return res.status(200).json({ status: 'success', message: 'Imagen actualizada' });
 });
 
-exports.authRefresh = catchAsync(async (req, res) => {
+exports.authRefresh = catchAsync(async (req, res, next) => {
   const { cookies } = req;
 
-  const decoded = jwt.decode(cookies.token);
+  // La firma SÍ se verifica (solo se tolera que haya expirado): decodificar sin verificar
+  // permitía fabricar una cookie y obtener una sesión de cualquier cuenta.
+  let decoded;
+  try {
+    decoded = jwt.verify(cookies.token, process.env.JWT_SECRET_SEED, { ignoreExpiration: true });
+  } catch {
+    return next(new AppError('Invalid token. Please login again', 401));
+  }
 
-  const token = await generateJWT(decoded.id);
-  
-  res.cookie('token', token, {
-    httpOnly: true,
-    secure: true, 
-    sameSite: 'strict',
-  });
+  const account = await User.Accounts.findOne({ where: { id: decoded.id, status: 'active' }, attributes: ['id'] });
+  if (!account) return next(new AppError('The owner of this account is no longer available', 401));
+
+  if (decoded.sid) {
+    const session = await Session.findByPk(decoded.sid);
+    const abandoned = session && Date.now() - new Date(session.last_seen_at).getTime() > IDLE_MS;
+
+    if (!session || session.accountId !== account.id || abandoned) {
+      if (abandoned) await session.destroy();
+      return next(new AppError('Session closed. Please login again', 401));
+    }
+
+    await session.update({ last_seen_at: new Date() });
+    res.cookie('token', await generateJWT(account.id, session.id), cookieOpts);
+  } else {
+    // Token anterior a las sesiones: se adopta creando la sesión (si no está demasiado vencido)
+    if (!decoded.exp || decoded.exp * 1000 < Date.now() - IDLE_MS)
+      return next(new AppError('Session expired. Please login again', 401));
+    await startSession(req, res, account.id);
+  }
 
   return res.status(200).json({
     status: 'success',
