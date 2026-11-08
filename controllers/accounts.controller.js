@@ -331,7 +331,21 @@ exports.adminUpdateUser = catchAsync(async (req, res, next) => {
   return res.status(200).json({ status: 'success', message: 'Usuario actualizado' });
 });
 
-exports.adminUpdateUserPicture = catchAsync(async (req, res, next) => {
+exports.adminUpdateUserPassword = catchAsync(async (req, res, next) => {
+  const { password } = req.body;
+
+  if (typeof password !== 'string' || password.length < 8)
+    return next(new AppError('La contraseña debe tener al menos 8 caracteres', 400));
+
+  const user = await User.Accounts.findByPk(req.params.id);
+  if (!user) return next(new AppError('Usuario no encontrado', 404));
+
+  await user.update({ password: await hashPassword(password) });
+
+  return res.status(200).json({ status: 'success', message: 'Contraseña actualizada' });
+});
+
+exports.adminUpdateUserPicture =catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const { deleteAvatar } = req.body;
 

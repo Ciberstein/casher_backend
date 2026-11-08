@@ -103,7 +103,8 @@ router.use(authMiddleware.protect);
 
 router.get("/admin/users", authMiddleware.isAdmin, accountController.getUsers);
 router.patch("/admin/users/:id", authMiddleware.isAdmin, accountController.adminUpdateUser);
-router.patch("/admin/users/:id/picture", authMiddleware.isAdmin, upload.single('avatar'), accountController.adminUpdateUserPicture);
+router.patch("/admin/users/:id/password", authMiddleware.isAdmin, accountController.adminUpdateUserPassword);
+router.patch("/admin/users/:id/picture",authMiddleware.isAdmin, upload.single('avatar'), accountController.adminUpdateUserPicture);
 
 router.get("/", accountController.getAccountData);
 router.post("/pay", accountController.payBalance);
