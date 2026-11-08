@@ -44,6 +44,36 @@ const DEMO = [
   { username: 'demo_sin_deuda', loans: [[900000, 'COP', 0, 0, 'rejected']] },
 ];
 
+// Préstamos para una cuenta real, p. ej.: node scripts/seed-demo-loans.js --main=correo@dominio.com
+// Es aditivo: los préstamos no llevan marca, así que --clean NO los borra (se imprimen los ids).
+const MAIN_LOANS = [
+  [1500000, 'COP', 40, 0, 'accepted'],
+  [600000, 'COP', 12, 150000, 'accepted'],
+  [250, 'USD', 18, 0, 'accepted'],
+  [900000, 'COP', 3, 0, 'pending'],
+  [300000, 'COP', 60, 0, 'rejected'],
+  [200000, 'COP', 50, 900000, 'paid'],
+];
+
+const seedMainUser = async (email) => {
+  const account = await User.Accounts.findOne({ where: { email } });
+  if (!account) throw new Error(`No existe la cuenta ${email}`);
+  const ids = [];
+  for (const [amount, currency, days, paid, status] of MAIN_LOANS) {
+    const loan = await Loan.create({
+      amount,
+      currency,
+      interest_rate: account.interest_rate,
+      status,
+      accountId: account.id,
+      accepted_at: status === 'accepted' || status === 'paid' ? daysAgo(days) : null,
+      paid_amount: paid,
+    });
+    ids.push(loan.id);
+  }
+  console.log(`${account.username}: ${ids.length} préstamos (ids ${ids.join(', ')})`);
+};
+
 const clean = async () => {
   const accounts = await User.Accounts.findAll({ where: { email: { [Op.like]: `%${DEMO_DOMAIN}` } } });
   const ids = accounts.map(a => a.id);
@@ -57,6 +87,9 @@ const clean = async () => {
 (async () => {
   await db.authenticate();
   initModel();
+
+  const mainArg = process.argv.find(a => a.startsWith('--main='));
+  if (mainArg) return seedMainUser(mainArg.slice('--main='.length));
 
   const removed = await clean();
   if (removed) console.log(`Eliminados ${removed} usuarios demo previos`);
