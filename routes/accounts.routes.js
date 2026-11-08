@@ -1,4 +1,6 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
+const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const accountController = require("../controllers/accounts.controller");
 const accountMiddleware = require("../middlewares/accounts.middleware");
@@ -8,6 +10,20 @@ const authMiddleware = require("../middlewares/auth.middleware");
 const turnstileMiddleware = require("../middlewares/turnstile.middleware");
 
 const router = express.Router();
+
+// Frena el adivinado de códigos de 6 dígitos. Se limita por cuenta (no por IP: tras el proxy
+// todas las IP serían la misma y un usuario bloquearía a los demás).
+const twoFactorLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) =>
+    String(req.sessionAccount?.id ?? jwt.decode(req.body?.challenge)?.id ?? "anonymous"),
+  handler: (_, res) =>
+    res.status(429).json({ status: "error", message: "Demasiados intentos, intenta de nuevo en unos minutos" }),
+});
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.post(
@@ -55,6 +71,11 @@ router.post(
   authMiddleware.userHasCode,
   authMiddleware.sendMailCode,
   accountController.loginAccount
+);
+router.post(
+  "/login/2fa",
+  twoFactorLimiter,
+  accountController.loginTwoFactor
 );
 router.post(
   "/recovery",
@@ -105,6 +126,10 @@ router.get("/admin/users", authMiddleware.isAdmin, accountController.getUsers);
 router.patch("/admin/users/:id", authMiddleware.isAdmin, accountController.adminUpdateUser);
 router.patch("/admin/users/:id/password", authMiddleware.isAdmin, accountController.adminUpdateUserPassword);
 router.patch("/admin/users/:id/picture",authMiddleware.isAdmin, upload.single('avatar'), accountController.adminUpdateUserPicture);
+
+router.post("/2fa/setup", accountController.twoFactorSetup);
+router.post("/2fa/enable", twoFactorLimiter, accountController.twoFactorEnable);
+router.post("/2fa/disable", twoFactorLimiter, accountController.twoFactorDisable);
 
 router.get("/", accountController.getAccountData);
 router.post("/pay", accountController.payBalance);

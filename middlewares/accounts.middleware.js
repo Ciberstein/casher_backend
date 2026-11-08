@@ -2,6 +2,7 @@ const AppError = require("../utils/appError");
 const { hashPassword, comparePassword } = require("../utils/hashPassword");
 const catchAsync = require("../utils/catchAsync");
 const { generateJWT } = require("../utils/jwt");
+const { signChallenge } = require("../utils/twoFactor");
 const admin = require('../firebase/config');
 const User = require("../models/accounts.model");
 
@@ -50,7 +51,7 @@ exports.validExistAccount = catchAsync(async (req, res, next) => {
 
   const account = await User.Accounts.findOne({
     where: { email: email.toLowerCase() },
-    attributes: ["id", "email", "status"],
+    attributes: ["id", "email", "status", "two_factor_enabled"],
   });
 
   if (!account) {
@@ -155,6 +156,16 @@ exports.accountVerify = catchAsync(async (req, res, next) => {
   const { account } = req;
 
   if (account.status === "active") {
+    // Con 2FA activo la contraseña (o Google) no basta: se exige el segundo paso
+    if (account.two_factor_enabled) {
+      return res.status(202).json({
+        status: "success",
+        message: "Two-factor code required",
+        twoFactor: true,
+        challenge: signChallenge(account.id),
+      });
+    }
+
     const token = await generateJWT(account.id);
 
     return res.cookie('token', token, {

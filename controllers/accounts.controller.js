@@ -1,4 +1,15 @@
-const { hashPassword } = require("../utils/hashPassword");
+const { hashPassword, comparePassword } = require("../utils/hashPassword");
+const QRCode = require("qrcode");
+const {
+  generateSecret,
+  verifyTotp,
+  otpauthUrl,
+  encryptSecret,
+  decryptSecret,
+  generateBackupCodes,
+  consumeBackupCode,
+  verifyChallenge,
+} = require("../utils/twoFactor");
 const catchAsync = require("../utils/catchAsync");
 const AppError = require("../utils/appError");
 const { generateJWT } = require("../utils/jwt");
@@ -101,13 +112,115 @@ exports.logout = catchAsync(async (req, res) => {
   res.send('Logged out');
 });
 
+// ---------- Autenticación en dos pasos (TOTP) ----------
+
+// Valida un código de la app o un código de respaldo. Devuelve true y consume el de respaldo si aplica.
+const checkSecondFactor = async (account, code) => {
+  const value = String(code || '').trim();
+  if (!account.two_factor_secret) return false;
+
+  if (/^\d{6}$/.test(value)) {
+    return verifyTotp(decryptSecret(account.two_factor_secret), value);
+  }
+
+  const remaining = consumeBackupCode(account.two_factor_backup_codes, value);
+  if (!remaining) return false;
+  await account.update({ two_factor_backup_codes: remaining });
+  return true;
+};
+
+// Segundo paso del login: canjea el challenge + código por la sesión
+exports.loginTwoFactor = catchAsync(async (req, res, next) => {
+  const { challenge, code } = req.body;
+
+  let decoded;
+  try {
+    decoded = verifyChallenge(challenge);
+  } catch {
+    return next(new AppError('La verificación expiró, ingresa de nuevo', 401));
+  }
+
+  const account = await User.Accounts.unscoped().findOne({
+    where: { id: decoded.id, status: 'active', two_factor_enabled: true },
+  });
+
+  if (!account || !(await checkSecondFactor(account, code)))
+    return next(new AppError('Código incorrecto', 401));
+
+  const token = await generateJWT(account.id);
+
+  return res.cookie('token', token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict',
+  }).status(200).json({
+    status: 'success',
+    message: 'Account has been logged',
+  });
+});
+
+// Paso 1 del alta: genera un secreto pendiente y su QR. No activa nada todavía.
+exports.twoFactorSetup = catchAsync(async (req, res, next) => {
+  const { sessionAccount } = req;
+
+  if (sessionAccount.two_factor_enabled)
+    return next(new AppError('La verificación en dos pasos ya está activa', 400));
+
+  const secret = generateSecret();
+  await sessionAccount.update({ two_factor_secret: encryptSecret(secret) });
+
+  const qr = await QRCode.toDataURL(otpauthUrl(sessionAccount.email, secret), { margin: 1, width: 220 });
+
+  return res.status(200).json({ status: 'success', secret, qr });
+});
+
+// Paso 2 del alta: confirma con un código de la app, activa y entrega los códigos de respaldo (una sola vez)
+exports.twoFactorEnable = catchAsync(async (req, res, next) => {
+  const { code } = req.body;
+  const account = await User.Accounts.unscoped().findByPk(req.sessionAccount.id);
+
+  if (account.two_factor_enabled)
+    return next(new AppError('La verificación en dos pasos ya está activa', 400));
+
+  if (!account.two_factor_secret || !verifyTotp(decryptSecret(account.two_factor_secret), code))
+    return next(new AppError('Código incorrecto', 401));
+
+  const { codes, hashes } = generateBackupCodes();
+  await account.update({ two_factor_enabled: true, two_factor_backup_codes: hashes });
+
+  return res.status(200).json({ status: 'success', backupCodes: codes });
+});
+
+// Desactivar exige la contraseña y un código vigente (app o respaldo)
+exports.twoFactorDisable = catchAsync(async (req, res, next) => {
+  const { password, code } = req.body;
+  const account = await User.Accounts.unscoped().findByPk(req.sessionAccount.id);
+
+  if (!account.two_factor_enabled)
+    return next(new AppError('La verificación en dos pasos no está activa', 400));
+
+  if (!password || !(await comparePassword(password, account.password)))
+    return next(new AppError('Contraseña incorrecta', 401));
+
+  if (!(await checkSecondFactor(account, code)))
+    return next(new AppError('Código incorrecto', 401));
+
+  await account.update({
+    two_factor_enabled: false,
+    two_factor_secret: null,
+    two_factor_backup_codes: null,
+  });
+
+  return res.status(200).json({ status: 'success', message: 'Verificación en dos pasos desactivada' });
+});
+
 exports.getAccountData = catchAsync(async (req, res) => {
   const { sessionAccount } = req;
 
   const [account, accountBalances, activeLoans] = await Promise.all([
     User.Accounts.findOne({
       where: { id: sessionAccount.id },
-      attributes: ["id", "email", "username", "picture", "role", "currency", "country", "interest_rate"],
+      attributes: ["id", "email", "username", "picture", "role", "currency", "country", "interest_rate", "two_factor_enabled"],
       include: [{
         attributes: ["first_name", "middle_name", "surname_1", "surname_2", "birthday"],
         model: User.Data,

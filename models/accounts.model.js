@@ -63,10 +63,32 @@ const Accounts = db.define(
       defaultValue: "CO",
       field: "country",
     },
+    two_factor_enabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: "two_factor_enabled",
+    },
+    // Secreto TOTP cifrado; mientras two_factor_enabled sea false es solo un alta pendiente
+    two_factor_secret: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: "two_factor_secret",
+    },
+    // Hashes sha256 de los códigos de respaldo que aún no se han usado
+    two_factor_backup_codes: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      field: "two_factor_backup_codes",
+    },
   },
   {
     tableName: "users_accounts",
-    schema: "users"
+    schema: "users",
+    // Los datos de 2FA nunca salen en consultas normales; se piden con .unscoped()
+    defaultScope: {
+      attributes: { exclude: ["two_factor_secret", "two_factor_backup_codes"] },
+    },
   }
 );
 
