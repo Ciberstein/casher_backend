@@ -87,7 +87,26 @@ exports.rejectLoan = catchAsync(async (req, res, next) => {
   return res.status(200).json({ status: 'success', message: 'Loan rejected' });
 });
 
-exports.cancelLoan = catchAsync(async (req, res, next) => {
+// Cambia la tasa diaria de un préstamo aceptado. Es retroactivo: el saldo se recalcula
+// con la nueva tasa desde accepted_at.
+exports.updateInterestRate = catchAsync(async (req, res, next) => {
+  const rate = Number(req.body.interest_rate);
+  if (req.body.interest_rate === '' || req.body.interest_rate == null || !Number.isFinite(rate) || rate < 0 || rate > 100)
+    return next(new AppError('La tasa debe ser un número entre 0 y 100', 400));
+
+  const loan = await Loan.findByPk(req.params.id, {
+    include: [{ model: User.Accounts, as: 'account', attributes: ['id', 'email', 'username'] }],
+  });
+
+  if (!loan) return next(new AppError('Loan not found', 404));
+  if (loan.status !== 'accepted') return next(new AppError('Solo se puede modificar la tasa de préstamos aceptados', 400));
+
+  await loan.update({ interest_rate: rate });
+
+  return res.status(200).json({ status: 'success', loan: withOutstanding(loan) });
+});
+
+exports.cancelLoan =catchAsync(async (req, res, next) => {
   const { sessionAccount } = req;
 
   const loan = await Loan.findOne({ where: { id: req.params.id, accountId: sessionAccount.id } });

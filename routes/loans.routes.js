@@ -14,5 +14,6 @@ router.patch('/:id/cancel', loansController.cancelLoan);
 router.get('/admin', restrictTo('admin'), loansController.getPendingLoans);
 router.patch('/:id/accept', restrictTo('admin'), loansController.acceptLoan);
 router.patch('/:id/reject', restrictTo('admin'), loansController.rejectLoan);
+router.patch('/:id/interest-rate', restrictTo('admin'), loansController.updateInterestRate);
 
 module.exports = router;
