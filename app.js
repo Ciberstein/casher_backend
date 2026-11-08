@@ -31,6 +31,9 @@ if (process.env.NODE_ENV === "development")
   app.use(morgan("dev"));
 
 app.use("/ping", (_, r) => r.send("pong"));
+app.get("/", (_, res, next) =>
+  process.env.FRONTEND_DOMAIN ? res.redirect(process.env.FRONTEND_DOMAIN) : next()
+);
 app.use(cors(cors_conf));
 app.use(cookieParser()); 
 app.use(express.json());
