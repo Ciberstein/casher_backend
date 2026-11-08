@@ -127,6 +127,10 @@ router.patch(
   accountController.updateEmail
 );
 router.patch(
+  "/update/region",
+  accountController.updateRegion
+);
+router.patch(
   "/update/currency",
   accountController.updateCurrency
 );

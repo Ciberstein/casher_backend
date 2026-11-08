@@ -5,6 +5,16 @@ const { generateJWT } = require("../utils/jwt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/accounts.model");
 const Loan = require("../models/loan.model");
+const Currency = require("../models/currency.model");
+const Country = require("../models/country.model");
+
+// Una moneda es válida si existe en la tabla currencies y está activa
+const isAllowedCurrency = async (code) =>
+  typeof code === 'string' && !!(await Currency.findOne({ where: { code, active: true } }));
+
+// Igual para los países: deben existir en la tabla countries y estar activos
+const isAllowedCountry = async (code) =>
+  typeof code === 'string' && !!(await Country.findOne({ where: { code, active: true } }));
 const Payment = require("../models/payment.model");
 const AccountBalance = require("../models/account_balance.model");
 const calculateOutstanding = require("../utils/loanCalculator");
@@ -97,7 +107,7 @@ exports.getAccountData = catchAsync(async (req, res) => {
   const [account, accountBalances, activeLoans] = await Promise.all([
     User.Accounts.findOne({
       where: { id: sessionAccount.id },
-      attributes: ["id", "email", "username", "picture", "role", "currency", "interest_rate"],
+      attributes: ["id", "email", "username", "picture", "role", "currency", "country", "interest_rate"],
       include: [{
         attributes: ["first_name", "middle_name", "surname_1", "surname_2", "birthday"],
         model: User.Data,
@@ -154,9 +164,35 @@ exports.updateEmail = catchAsync(async (req, res) => {
   });
 });
 
-exports.updateCurrency = catchAsync(async (req, res) => {
+// Región del usuario: país y/o moneda por defecto, validados y guardados en un solo paso
+exports.updateRegion = catchAsync(async (req, res, next) => {
+  const { country, currency } = req.body;
+  const { sessionAccount } = req;
+
+  if (country === undefined && currency === undefined)
+    return next(new AppError('Nada que actualizar', 400));
+
+  const updates = {};
+  if (country !== undefined) {
+    if (!(await isAllowedCountry(country))) return next(new AppError('País no válido', 400));
+    updates.country = country;
+  }
+  if (currency !== undefined) {
+    if (!(await isAllowedCurrency(currency))) return next(new AppError('Moneda no válida', 400));
+    updates.currency = currency;
+  }
+
+  await sessionAccount.update(updates);
+
+  return res.status(200).json({ status: 'success', message: 'Región actualizada' });
+});
+
+exports.updateCurrency = catchAsync(async (req, res, next) => {
   const { currency } = req.body;
   const { sessionAccount } = req;
+
+  if (!(await isAllowedCurrency(currency)))
+    return next(new AppError('Moneda no válida', 400));
 
   await sessionAccount.update({ currency });
 
@@ -307,7 +343,7 @@ exports.getUsers = catchAsync(async (req, res) => {
 
   const query = {
     where,
-    attributes: ['id', 'email', 'username', 'role', 'status', 'interest_rate', 'picture', 'createdAt'],
+    attributes: ['id', 'email', 'username', 'role', 'status', 'interest_rate', 'currency', 'country', 'picture', 'createdAt'],
     include: [{ model: User.Data, as: 'data', attributes: ['first_name', 'middle_name', 'surname_1', 'surname_2'] }],
     order: [['createdAt', 'DESC'], ['id', 'DESC']],
     distinct: true,
@@ -324,7 +360,7 @@ exports.getUsers = catchAsync(async (req, res) => {
 
 exports.adminUpdateUser = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  const { username, email, interest_rate, status, first_name, middle_name, surname_1, surname_2 } = req.body;
+  const { username, email, interest_rate, currency, country, status, first_name, middle_name, surname_1, surname_2 } = req.body;
 
   const user = await User.Accounts.findByPk(id, {
     include: [{ model: User.Data, as: 'data' }],
@@ -344,6 +380,14 @@ exports.adminUpdateUser = catchAsync(async (req, res, next) => {
     accountUpdates.email = emailLower;
   }
   if (interest_rate !== undefined) accountUpdates.interest_rate = Number(interest_rate);
+  if (currency !== undefined) {
+    if (!(await isAllowedCurrency(currency))) return next(new AppError('Moneda no válida', 400));
+    accountUpdates.currency = currency;
+  }
+  if (country !== undefined) {
+    if (!(await isAllowedCountry(country))) return next(new AppError('País no válido', 400));
+    accountUpdates.country = country;
+  }
   if (status !== undefined) accountUpdates.status = status;
 
   if (Object.keys(accountUpdates).length > 0) await user.update(accountUpdates);

@@ -2,6 +2,8 @@ const { db } = require("./config");
 const initModel = require("../models/initModels");
 const Bank = require("../models/bank.model");
 const DocumentType = require("../models/document_type.model");
+const Currency = require("../models/currency.model");
+const Country = require("../models/country.model");
 
 const SEED_BANKS = [
   { name: 'Bancolombia', logo: '🏦', country: 'CO' },
@@ -13,6 +15,16 @@ const SEED_DOCUMENT_TYPES = [
   { name: 'Cédula de ciudadanía', abbreviation: 'CC', country: 'CO' },
   { name: 'Cédula de extranjería', abbreviation: 'CE', country: 'CO' },
   { name: 'Pasaporte', abbreviation: 'PA', country: 'CO' },
+];
+
+const SEED_CURRENCIES = [
+  { code: 'COP', name: 'Peso colombiano' },
+  { code: 'USD', name: 'Dólar estadounidense' },
+];
+
+const SEED_COUNTRIES = [
+  { code: 'CO', name: 'Colombia' },
+  { code: 'VE', name: 'Venezuela' },
 ];
 
 const SCHEMAS = ["users"];
@@ -47,6 +59,16 @@ const initDatabase = async () => {
     await DocumentType.findOrCreate({ where: { abbreviation: dt.abbreviation, country: dt.country }, defaults: dt });
   }
   console.log("Document types seeded");
+
+  for (const cur of SEED_CURRENCIES) {
+    await Currency.findOrCreate({ where: { code: cur.code }, defaults: cur });
+  }
+  console.log("Currencies seeded");
+
+  for (const c of SEED_COUNTRIES) {
+    await Country.findOrCreate({ where: { code: c.code }, defaults: c });
+  }
+  console.log("Countries seeded");
 };
 
 module.exports = initDatabase;

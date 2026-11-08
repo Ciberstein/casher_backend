@@ -57,6 +57,12 @@ const Accounts = db.define(
       defaultValue: "COP",
       field: "currency",
     },
+    country: {
+      type: DataTypes.STRING(2),
+      allowNull: false,
+      defaultValue: "CO",
+      field: "country",
+    },
   },
   {
     tableName: "users_accounts",
